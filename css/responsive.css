@@ -1,0 +1,280 @@
+/* ==========================================================================
+   StudentHub - Responsive Stylesheet (responsive.css)
+   Breakpoints: 1200px (Laptops), 992px (Tablets), 768px (Mobile), 480px (Small Mobile)
+   ========================================================================== */
+
+/* Sidebar Mobile Overlay */
+.sidebar-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.55);
+  backdrop-filter: blur(2px);
+  z-index: 95;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--transition-normal);
+}
+
+.sidebar-overlay.active {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* 1. Large Laptops & Small Desktops (<= 1200px) */
+@media (max-width: 1200px) {
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .dashboard-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .grades-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .profile-layout {
+    grid-template-columns: 300px 1fr;
+  }
+}
+
+/* 2. Tablets & Small Laptops (<= 992px) */
+@media (max-width: 992px) {
+  .sidebar {
+    transform: translateX(-100%);
+    width: var(--sidebar-width) !important;
+  }
+
+  .sidebar.mobile-open {
+    transform: translateX(0);
+  }
+
+  .sidebar-collapse-btn {
+    display: none;
+  }
+
+  /* Restore labels inside mobile drawer even if desktop was collapsed */
+  .app-layout.sidebar-collapsed .brand-text,
+  .app-layout.sidebar-collapsed .demo-pill-text,
+  .app-layout.sidebar-collapsed .nav-label,
+  .app-layout.sidebar-collapsed .nav-badge,
+  .app-layout.sidebar-collapsed .sidebar-footer {
+    display: flex;
+  }
+
+  .app-layout.sidebar-collapsed .nav-link {
+    justify-content: flex-start;
+    padding: 11px 14px;
+  }
+
+  .main-wrapper,
+  .app-layout.sidebar-collapsed .main-wrapper {
+    margin-left: 0;
+  }
+
+  .mobile-menu-btn {
+    display: inline-flex;
+  }
+
+  .topbar {
+    padding: 0 18px;
+  }
+
+  .topbar-date {
+    display: none;
+  }
+
+  .content-area {
+    padding: 20px;
+  }
+
+  .profile-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .settings-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* 3. Mobile Phones & Portrait Tablets (<= 768px) */
+@media (max-width: 768px) {
+  .topbar {
+    height: auto;
+    min-height: 64px;
+    padding: 10px 16px;
+    flex-wrap: wrap;
+  }
+
+  .topbar-center {
+    order: 3;
+    max-width: 100%;
+    width: 100%;
+    flex-basis: 100%;
+    margin-top: 6px;
+  }
+
+  .topbar-user-info {
+    display: none;
+  }
+
+  .topbar-profile-btn {
+    padding: 3px;
+  }
+
+  .hero-banner {
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 22px 20px;
+  }
+
+  .hero-left {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 14px;
+  }
+
+  .hero-title {
+    font-size: 1.32rem;
+  }
+
+  .stats-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .section-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .section-header-actions {
+    width: 100%;
+  }
+
+  .section-header-actions .btn {
+    flex: 1;
+  }
+
+  .schedule-view-switcher {
+    width: 100%;
+  }
+
+  .schedule-view-switcher .btn {
+    flex: 1;
+    justify-content: center;
+  }
+
+  .notification-dropdown {
+    position: fixed;
+    top: 70px;
+    left: 16px;
+    right: 16px;
+    width: auto;
+  }
+
+  .content-area {
+    padding: 16px;
+  }
+
+  .card {
+    padding: 16px;
+  }
+}
+
+/* 4. Small Mobile Devices (<= 480px) */
+@media (max-width: 480px) {
+  .breadcrumb-root,
+  .breadcrumb-sep {
+    display: none;
+  }
+
+  .page-title {
+    font-size: 1.05rem;
+  }
+
+  .schedule-days-grid,
+  .tasks-grid,
+  .resources-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .dash-list-item {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .dash-item-left {
+    flex-direction: column;
+    align-items: flex-start;
+    width: 100%;
+  }
+
+  .modal-backdrop {
+    padding: 10px;
+  }
+
+  .modal-body {
+    padding: 16px;
+  }
+
+  .btn {
+    min-height: 42px;
+  }
+}
+
+
+
+/* ==========================================================================
+   BANTUG UNIVERSITY - Responsive Login & Multi-Role Breakpoints
+   ========================================================================== */
+
+@media (max-width: 992px) {
+  .login-shell {
+    grid-template-columns: 1fr;
+    max-width: 620px;
+  }
+
+  .login-brand-panel {
+    padding: 28px 24px;
+  }
+
+  .login-form-panel {
+    padding: 28px 24px;
+  }
+
+  .status-tracker-steps {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .login-screen {
+    padding: 12px;
+  }
+
+  .login-special-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .login-brand-top {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .login-uni-name {
+    font-size: 1.4rem;
+  }
+
+  .status-tracker-steps {
+    grid-template-columns: 1fr;
+  }
+
+  .role-Indicator-btn span#topbarRoleLabel {
+    display: none;
+  }
+}

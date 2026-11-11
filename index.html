@@ -1,0 +1,798 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description"
+    content="BANTUG UNIVERSITY - Student Portal System (Student, Faculty, and Applicant Portals)" />
+  <title>BANTUG UNIVERSITY | Student Portal System</title>
+  <link rel="icon" type="image/png" href="assets/images/bantug-university-logo.png" />
+  <!-- Google Fonts: Inter & Poppins -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@500;600;700&display=swap"
+    rel="stylesheet" />
+  <!-- Application Stylesheets -->
+  <link rel="stylesheet" href="css/style.css" />
+  <link rel="stylesheet" href="css/dashboard.css" />
+  <link rel="stylesheet" href="css/responsive.css" />
+</head>
+
+<body>
+  <!-- ====================================================================
+       1. BANTUG UNIVERSITY LOGIN & ACCESS INTERFACE
+       ==================================================================== -->
+  <div id="loginScreen" class="login-screen">
+    <div class="login-shell">
+      <!-- Left Branding & Admissions Showcase Panel -->
+      <div class="login-brand-panel">
+        <div class="login-brand-top">
+          <div class="university-logo-wrap login-logo-wrap">
+            <img src="assets/images/bantug-university-logo.png" alt="BANTUG UNIVERSITY Official Logo"
+              class="bu-logo-img login-logo-img"
+              onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';" />
+            <div class="bu-logo-fallback" style="display:none;" aria-hidden="true">BU</div>
+          </div>
+          <div class="login-brand-titles">
+            <span class="login-uni-badge">Official Academic Demonstration Portal</span>
+            <h1 class="login-uni-name">BANTUG UNIVERSITY</h1>
+            <p class="login-uni-sub">Student Portal System &bull; Academic Information &amp; Services</p>
+          </div>
+        </div>
+
+        <div class="login-welcome-copy">
+          <h2>Welcome to the BANTUG UNIVERSITY Portal</h2>
+          <p>
+            Access centralized academic services for <strong>Students</strong>, class and grade management tools for
+            <strong>Faculty</strong>, and online program applications for prospective <strong>Applicants</strong>.
+          </p>
+        </div>
+
+        <!-- Distinct Demo Access & Applicant Call-To-Action Cards -->
+        <div class="login-special-actions">
+          <!-- Explore Demo Portal Card -->
+          <div class="demo-access-card">
+            <div class="demo-access-header">
+              <span class="badge badge-info">Instant Evaluator Access</span>
+              <h3>No Credentials Needed?</h3>
+            </div>
+            <p>
+              Visitors, classmates, and instructors can immediately explore the Student, Faculty, or Applicant portal
+              preloaded with <strong>BSIT 2-2</strong> demonstration data.
+            </p>
+            <button type="button" class="btn btn-demo-explore" id="exploreDemoPortalBtn">
+              <svg viewBox="0 0 24 24" width="19" height="19" stroke="currentColor" stroke-width="2" fill="none">
+                <polygon points="5 3 19 12 5 21 5 3"></polygon>
+              </svg>
+              <span>Explore Demo Portal</span>
+            </button>
+          </div>
+
+          <!-- Apply to BANTUG UNIVERSITY Card -->
+          <div class="applicant-cta-card">
+            <div class="demo-access-header">
+              <span class="badge badge-warning">Prospective Students</span>
+              <h3>New to BANTUG UNIVERSITY?</h3>
+            </div>
+            <p>
+              Explore available degree programs, review sample admission requirements, and submit a demonstration
+              application online.
+            </p>
+            <button type="button" class="btn btn-applicant-cta" id="applyToUniversityBtn">
+              <svg viewBox="0 0 24 24" width="19" height="19" stroke="currentColor" stroke-width="2" fill="none">
+                <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                <circle cx="8.5" cy="7" r="4"></circle>
+                <line x1="20" y1="8" x2="20" y2="14"></line>
+                <line x1="23" y1="11" x2="17" y2="11"></line>
+              </svg>
+              <span>Apply to BANTUG UNIVERSITY</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="login-brand-footer">
+          <span>BANTUG UNIVERSITY &bull; BSIT 2-2 Academic Project Demonstration</span>
+          <span>HTML5 &bull; CSS3 &bull; Vanilla JS &bull; localStorage</span>
+        </div>
+      </div>
+
+      <!-- Right Authentication Form & Demo Credentials Panel -->
+      <div class="login-form-panel">
+        <div class="login-form-header">
+          <div class="login-mobile-brand">
+            <img src="assets/images/bantug-university-logo.png" alt="BANTUG UNIVERSITY Logo" class="bu-logo-img"
+              style="max-height:44px;width:auto;"
+              onerror="this.style.display='none'; this.nextElementSibling.style.display='inline-flex';" />
+            <span class="bu-logo-fallback-sm" style="display:none;">BU</span>
+            <strong>BANTUG UNIVERSITY</strong>
+          </div>
+          <h2>Sign In to Your Portal</h2>
+          <p>Select your portal role or enter a demonstration account below.</p>
+        </div>
+
+        <!-- Role Selector Tabs -->
+        <div class="login-role-tabs" role="tablist" aria-label="Select User Role">
+          <button type="button" class="login-role-tab active" data-login-role="student" role="tab" aria-selected="true">
+            Student
+          </button>
+          <button type="button" class="login-role-tab" data-login-role="faculty" role="tab" aria-selected="false">
+            Faculty
+          </button>
+          <button type="button" class="login-role-tab" data-login-role="applicant" role="tab" aria-selected="false">
+            Applicant Demo Account
+          </button>
+        </div>
+
+        <form id="portalLoginForm" novalidate>
+          <input type="hidden" id="loginRoleInput" name="role" value="student" />
+
+          <div class="form-group" style="margin-bottom:14px;">
+            <label class="form-label" for="loginIdentifier">Email or Username / ID <span class="req">*</span></label>
+            <input type="text" id="loginIdentifier" name="identifier" class="form-control"
+              placeholder="e.g. student.demo@bantug.edu.example or 2025-BSIT-0202" autocomplete="username" />
+            <div class="field-error" data-error-for="identifier"></div>
+          </div>
+
+          <div class="form-group" style="margin-bottom:12px;">
+            <label class="form-label" for="loginPassword">Password <span class="req">*</span></label>
+            <div class="password-input-wrap">
+              <input type="password" id="loginPassword" name="password" class="form-control"
+                placeholder="Enter demonstration password" autocomplete="current-password" />
+              <button type="button" class="password-toggle-btn" id="togglePasswordBtn"
+                aria-label="Show or hide password" title="Show / Hide Password">
+                Show
+              </button>
+            </div>
+            <div class="field-error" data-error-for="password"></div>
+          </div>
+
+          <div class="login-options-row">
+            <label class="remember-me-label">
+              <input type="checkbox" id="loginRememberMe" name="remember" checked />
+              <span>Remember me on this browser</span>
+            </label>
+            <button type="button" class="btn-text" id="forgotPasswordBtn">
+              Forgot password?
+            </button>
+          </div>
+
+          <div id="loginGeneralError" class="field-error" style="margin-bottom:8px;"></div>
+
+          <button type="submit" class="btn btn-primary login-submit-btn">
+            Sign In to BANTUG UNIVERSITY Portal
+          </button>
+        </form>
+
+        <!-- Sample Demonstration Accounts Box -->
+        <div class="demo-credentials-box">
+          <div class="demo-cred-header">
+            <strong>Sample Demonstration Accounts (Click to Auto-Fill)</strong>
+            <span>Front-end localStorage simulation &mdash; do not enter real passwords.</span>
+          </div>
+          <div class="demo-cred-list">
+            <button type="button" class="demo-cred-item" data-fill-role="student">
+              <div>
+                <span class="badge badge-primary">Student (Racel Valiente &bull; BSIT 2-2)</span>
+                <div class="demo-cred-id">User: <code>student.demo@bantug.edu.example</code> (or
+                  <code>2025-BSIT-0202</code>)
+                </div>
+                <div class="demo-cred-pw">Pass: <code>demo123</code></div>
+              </div>
+              <span class="demo-cred-action">Fill &rarr;</span>
+            </button>
+
+            <button type="button" class="demo-cred-item" data-fill-role="faculty">
+              <div>
+                <span class="badge badge-info">Faculty 1 (Fabian Somera &bull; IT 211)</span>
+                <div class="demo-cred-id">User: <code>f.somera.demo@bantug.edu.example</code> (or
+                  <code>FAC-BU-04</code>)
+                </div>
+                <div class="demo-cred-pw">Pass: <code>faculty123</code></div>
+              </div>
+              <span class="demo-cred-action">Fill &rarr;</span>
+            </button>
+
+            <button type="button" class="demo-cred-item" data-fill-role="faculty2">
+              <div>
+                <span class="badge badge-info">Faculty 2 (Francis Van Salvador &bull; IT ELEC 2)</span>
+                <div class="demo-cred-id">User: <code>f.salvador.demo@bantug.edu.example</code> (or
+                  <code>FAC-BU-07</code>)
+                </div>
+                <div class="demo-cred-pw">Pass: <code>faculty123</code></div>
+              </div>
+              <span class="demo-cred-action">Fill &rarr;</span>
+            </button>
+
+            <button type="button" class="demo-cred-item" data-fill-role="applicant">
+              <div>
+                <span class="badge badge-warning">Applicant Demo Account (Ceasar Villanueva &bull; Sample
+                  Statuses)</span>
+                <div class="demo-cred-id">User: <code>applicant.demo@bantug.edu.example</code> (or
+                  <code>BU-ADM-2026-10482</code>)
+                </div>
+                <div class="demo-cred-pw">Pass: <code>apply123</code></div>
+              </div>
+              <span class="demo-cred-action">Fill &rarr;</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ====================================================================
+       2. AUTHENTICATED PORTAL SHELL (STUDENT / FACULTY / APPLICANT)
+       ==================================================================== -->
+  <div id="sidebarOverlay" class="sidebar-overlay" aria-hidden="true"></div>
+
+  <div class="app-layout" id="appLayout" hidden>
+    <!-- ==================== LEFT SIDEBAR ==================== -->
+    <aside class="sidebar" id="sidebar" aria-label="Main Navigation">
+      <div class="sidebar-header">
+        <a href="#dashboard" class="brand-logo" id="brandLogoLink">
+          <div class="sidebar-logo-box">
+            <img src="assets/images/bantug-university-logo.png" alt="BANTUG UNIVERSITY Logo"
+              class="bu-logo-img sidebar-logo-img"
+              onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';" />
+            <div class="bu-logo-fallback-sm" style="display:none;" aria-hidden="true">BU</div>
+          </div>
+          <div class="brand-text">
+            <span class="brand-title">BANTUG UNIVERSITY</span>
+            <span class="brand-subtitle" id="sidebarPortalSubtitle">Student Portal System</span>
+          </div>
+        </a>
+        <button type="button" class="icon-btn sidebar-collapse-btn" id="sidebarCollapseBtn" title="Toggle Sidebar"
+          aria-label="Toggle Sidebar">
+          <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none">
+            <polyline points="15 18 9 12 15 6"></polyline>
+          </svg>
+        </button>
+      </div>
+
+      <div class="sidebar-demo-pill">
+        <span class="status-dot" id="sidebarRoleDot"></span>
+        <span class="demo-pill-text" id="sidebarRoleBadgeText">Student Portal (BSIT 2-2)</span>
+      </div>
+
+      <nav class="sidebar-nav">
+        <ul class="nav-list" role="menubar">
+          <!-- ================= STUDENT NAVIGATION ITEMS ================= -->
+          <li class="nav-item" data-role-item="student" role="none">
+            <button type="button" class="nav-link active" data-section="dashboard" role="menuitem">
+              <span class="nav-icon">
+                <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none">
+                  <rect x="3" y="3" width="7" height="9" rx="1"></rect>
+                  <rect x="14" y="3" width="7" height="5" rx="1"></rect>
+                  <rect x="14" y="12" width="7" height="9" rx="1"></rect>
+                  <rect x="3" y="16" width="7" height="5" rx="1"></rect>
+                </svg>
+              </span>
+              <span class="nav-label">Dashboard</span>
+            </button>
+          </li>
+          <li class="nav-item" data-role-item="student" role="none">
+            <button type="button" class="nav-link" data-section="profile" role="menuitem">
+              <span class="nav-icon">
+                <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none">
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                  <circle cx="12" cy="7" r="4"></circle>
+                </svg>
+              </span>
+              <span class="nav-label">My Profile</span>
+            </button>
+          </li>
+          <li class="nav-item" data-role-item="student" role="none">
+            <button type="button" class="nav-link" data-section="subjects" role="menuitem">
+              <span class="nav-icon">
+                <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none">
+                  <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+                  <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+                </svg>
+              </span>
+              <span class="nav-label">My Subjects</span>
+            </button>
+          </li>
+          <li class="nav-item" data-role-item="student" role="none">
+            <button type="button" class="nav-link" data-section="schedule" role="menuitem">
+              <span class="nav-icon">
+                <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none">
+                  <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                  <line x1="16" y1="2" x2="16" y2="6"></line>
+                  <line x1="8" y1="2" x2="8" y2="6"></line>
+                  <line x1="3" y1="10" x2="21" y2="10"></line>
+                </svg>
+              </span>
+              <span class="nav-label">Class Schedule</span>
+            </button>
+          </li>
+          <li class="nav-item" data-role-item="student" role="none">
+            <button type="button" class="nav-link" data-section="grades" role="menuitem">
+              <span class="nav-icon">
+                <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none">
+                  <path d="M22 10v6M2 10l10-5 10 5-10 5z"></path>
+                  <path d="M6 12v5c3 3 9 3 12 0v-5"></path>
+                </svg>
+              </span>
+              <span class="nav-label">My Grades</span>
+            </button>
+          </li>
+          <li class="nav-item" data-role-item="student" role="none">
+            <button type="button" class="nav-link" data-section="attendance" role="menuitem">
+              <span class="nav-icon">
+                <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none">
+                  <path d="M9 11l3 3L22 4"></path>
+                  <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path>
+                </svg>
+              </span>
+              <span class="nav-label">Attendance</span>
+            </button>
+          </li>
+          <li class="nav-item" data-role-item="student" role="none">
+            <button type="button" class="nav-link" data-section="tasks" role="menuitem">
+              <span class="nav-icon">
+                <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                  <polyline points="14 2 14 8 20 8"></polyline>
+                  <line x1="9" y1="15" x2="15" y2="15"></line>
+                  <line x1="9" y1="11" x2="13" y2="11"></line>
+                </svg>
+              </span>
+              <span class="nav-label">Task Manager</span>
+              <span class="nav-badge" id="navTaskBadge" hidden>0</span>
+            </button>
+          </li>
+          <li class="nav-item" data-role-item="student" role="none">
+            <button type="button" class="nav-link" data-section="announcements" role="menuitem">
+              <span class="nav-icon">
+                <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none">
+                  <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+                  <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+                </svg>
+              </span>
+              <span class="nav-label">Announcements</span>
+              <span class="nav-badge badge-accent" id="navAnnouncementBadge" hidden>0</span>
+            </button>
+          </li>
+          <li class="nav-item" data-role-item="student,faculty" role="none">
+            <button type="button" class="nav-link" data-section="resources" role="menuitem">
+              <span class="nav-icon">
+                <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none">
+                  <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+                  <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+                </svg>
+              </span>
+              <span class="nav-label">Learning Resources</span>
+            </button>
+          </li>
+
+          <!-- ================= FACULTY NAVIGATION ITEMS ================= -->
+          <li class="nav-item" data-role-item="faculty" role="none" hidden>
+            <button type="button" class="nav-link" data-section="faculty-dashboard" role="menuitem">
+              <span class="nav-icon">
+                <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none">
+                  <rect x="3" y="3" width="7" height="9" rx="1"></rect>
+                  <rect x="14" y="3" width="7" height="5" rx="1"></rect>
+                  <rect x="14" y="12" width="7" height="9" rx="1"></rect>
+                  <rect x="3" y="16" width="7" height="5" rx="1"></rect>
+                </svg>
+              </span>
+              <span class="nav-label">Faculty Dashboard</span>
+            </button>
+          </li>
+          <li class="nav-item" data-role-item="faculty" role="none" hidden>
+            <button type="button" class="nav-link" data-section="faculty-profile" role="menuitem">
+              <span class="nav-icon">
+                <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none">
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                  <circle cx="12" cy="7" r="4"></circle>
+                </svg>
+              </span>
+              <span class="nav-label">Faculty Profile</span>
+            </button>
+          </li>
+          <li class="nav-item" data-role-item="faculty" role="none" hidden>
+            <button type="button" class="nav-link" data-section="faculty-classes" role="menuitem">
+              <span class="nav-icon">
+                <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none">
+                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                  <circle cx="9" cy="7" r="4"></circle>
+                  <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                  <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                </svg>
+              </span>
+              <span class="nav-label">My Classes &amp; Schedule</span>
+            </button>
+          </li>
+          <li class="nav-item" data-role-item="faculty" role="none" hidden>
+            <button type="button" class="nav-link" data-section="faculty-attendance" role="menuitem">
+              <span class="nav-icon">
+                <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none">
+                  <path d="M9 11l3 3L22 4"></path>
+                  <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path>
+                </svg>
+              </span>
+              <span class="nav-label">Attendance Management</span>
+            </button>
+          </li>
+          <li class="nav-item" data-role-item="faculty" role="none" hidden>
+            <button type="button" class="nav-link" data-section="faculty-grades" role="menuitem">
+              <span class="nav-icon">
+                <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none">
+                  <path d="M22 10v6M2 10l10-5 10 5-10 5z"></path>
+                  <path d="M6 12v5c3 3 9 3 12 0v-5"></path>
+                </svg>
+              </span>
+              <span class="nav-label">Grade Management</span>
+            </button>
+          </li>
+          <li class="nav-item" data-role-item="faculty" role="none" hidden>
+            <button type="button" class="nav-link" data-section="faculty-tasks" role="menuitem">
+              <span class="nav-icon">
+                <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                  <polyline points="14 2 14 8 20 8"></polyline>
+                  <line x1="9" y1="15" x2="15" y2="15"></line>
+                  <line x1="9" y1="11" x2="13" y2="11"></line>
+                </svg>
+              </span>
+              <span class="nav-label">Assignment Management</span>
+            </button>
+          </li>
+          <li class="nav-item" data-role-item="faculty" role="none" hidden>
+            <button type="button" class="nav-link" data-section="faculty-announcements" role="menuitem">
+              <span class="nav-icon">
+                <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none">
+                  <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+                  <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+                </svg>
+              </span>
+              <span class="nav-label">Faculty Announcements</span>
+            </button>
+          </li>
+          <li class="nav-item" data-role-item="faculty" role="none" hidden>
+            <button type="button" class="nav-link" data-section="faculty-applications" role="menuitem">
+              <span class="nav-icon">
+                <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none">
+                  <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                  <circle cx="8.5" cy="7" r="4"></circle>
+                  <polyline points="17 11 19 13 23 9"></polyline>
+                </svg>
+              </span>
+              <span class="nav-label">Student Applications</span>
+              <span class="nav-badge" id="navFacultyApplicationsBadge" hidden>0</span>
+            </button>
+          </li>
+
+          <!-- ================= APPLICANT NAVIGATION ITEMS ================= -->
+          <li class="nav-item" data-role-item="applicant" role="none" hidden>
+            <button type="button" class="nav-link" data-section="applicant-landing" role="menuitem">
+              <span class="nav-icon">
+                <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none">
+                  <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+                  <polyline points="9 22 9 12 15 12 15 22"></polyline>
+                </svg>
+              </span>
+              <span class="nav-label">Admissions Overview</span>
+            </button>
+          </li>
+          <li class="nav-item" data-role-item="applicant" role="none" hidden>
+            <button type="button" class="nav-link" data-section="applicant-form" role="menuitem">
+              <span class="nav-icon">
+                <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                  <polyline points="14 2 14 8 20 8"></polyline>
+                  <line x1="12" y1="18" x2="12" y2="12"></line>
+                  <line x1="9" y1="15" x2="15" y2="15"></line>
+                </svg>
+              </span>
+              <span class="nav-label">Application Form</span>
+            </button>
+          </li>
+          <li class="nav-item" data-role-item="applicant" role="none" hidden>
+            <button type="button" class="nav-link" data-section="applicant-status" role="menuitem">
+              <span class="nav-icon">
+                <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none">
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <polyline points="12 6 12 12 16 14"></polyline>
+                </svg>
+              </span>
+              <span class="nav-label">Application Status</span>
+            </button>
+          </li>
+
+          <!-- ================= SHARED SETTINGS ITEM ================= -->
+          <li class="nav-item" data-role-item="all" role="none">
+            <button type="button" class="nav-link" data-section="settings" role="menuitem">
+              <span class="nav-icon">
+                <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none">
+                  <circle cx="12" cy="12" r="3"></circle>
+                  <path
+                    d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0-2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z">
+                  </path>
+                </svg>
+              </span>
+              <span class="nav-label">Settings</span>
+            </button>
+          </li>
+        </ul>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="semester-card">
+          <div class="semester-label">BANTUG UNIVERSITY</div>
+          <div class="semester-value" id="sidebarTermText">2nd Sem, AY 2026–2027</div>
+          <div class="semester-sub" id="sidebarRoleSubText">Section: BSIT 2-2</div>
+        </div>
+        <button type="button" class="btn-sidebar-logout" id="sidebarLogoutBtn" title="Return to Login Page">
+          <svg viewBox="0 0 24 24" width="17" height="17" stroke="currentColor" stroke-width="2" fill="none">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+            <polyline points="16 17 21 12 16 7"></polyline>
+            <line x1="21" y1="12" x2="9" y2="12"></line>
+          </svg>
+          <span class="nav-label">Switch Role / Log Out</span>
+        </button>
+      </div>
+    </aside>
+
+    <!-- ==================== MAIN CONTENT WRAPPER ==================== -->
+    <div class="main-wrapper">
+      <!-- ==================== TOP NAVIGATION BAR ==================== -->
+      <header class="topbar">
+        <div class="topbar-left">
+          <button type="button" class="icon-btn mobile-menu-btn" id="mobileMenuBtn" aria-label="Open Navigation Menu">
+            <svg viewBox="0 0 24 24" width="22" height="22" stroke="currentColor" stroke-width="2" fill="none">
+              <line x1="3" y1="12" x2="21" y2="12"></line>
+              <line x1="3" y1="6" x2="21" y2="6"></line>
+              <line x1="3" y1="18" x2="21" y2="18"></line>
+            </svg>
+          </button>
+          <div class="page-breadcrumb">
+            <span class="breadcrumb-root">BANTUG UNIVERSITY</span>
+            <span class="breadcrumb-sep">/</span>
+            <h1 class="page-title" id="topbarPageTitle">Dashboard</h1>
+          </div>
+        </div>
+
+        <div class="topbar-center">
+          <div class="global-search-wrapper" id="globalSearchWrapper">
+            <svg class="search-icon" viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2"
+              fill="none">
+              <circle cx="11" cy="11" r="8"></circle>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+            <input type="search" id="globalSearchInput" class="global-search-input"
+              placeholder="Search BSIT 2-2 subjects, instructors, tasks, notices..." aria-label="Global Portal Search"
+              autocomplete="off" />
+            <div class="global-search-results" id="globalSearchResults" hidden></div>
+          </div>
+        </div>
+
+        <div class="topbar-right">
+          <!-- Role Switcher Pill (Quick Demo Switcher) -->
+          <button type="button" class="role-Indicator-btn" id="quickSwitchRoleBtn"
+            title="Switch Portal Role or Return to Login">
+            <span class="role-dot" id="topbarRoleDot"></span>
+            <span id="topbarRoleLabel">Student</span>
+          </button>
+
+          <div class="topbar-date" id="topbarDateDisplay" title="Current Date"></div>
+
+          <button type="button" class="icon-btn" id="themeToggleBtn" title="Switch Light/Dark Theme"
+            aria-label="Switch Theme">
+            <svg id="themeIconSun" viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2"
+              fill="none" hidden>
+              <circle cx="12" cy="12" r="5"></circle>
+              <line x1="12" y1="1" x2="12" y2="3"></line>
+              <line x1="12" y1="21" x2="12" y2="23"></line>
+              <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+              <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+              <line x1="1" y1="12" x2="3" y2="12"></line>
+              <line x1="21" y1="12" x2="23" y2="12"></line>
+              <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+              <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+            </svg>
+            <svg id="themeIconMoon" viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2"
+              fill="none">
+              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+            </svg>
+          </button>
+
+          <!-- Notification Bell & Dropdown -->
+          <div class="notification-wrapper">
+            <button type="button" class="icon-btn notification-btn" id="notificationBtn" aria-label="Notifications"
+              title="Notifications">
+              <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none">
+                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+                <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+              </svg>
+              <span class="notification-dot" id="notificationDot" hidden></span>
+            </button>
+            <div class="notification-dropdown" id="notificationDropdown" hidden>
+              <div class="dropdown-header">
+                <h3>BANTUG UNIVERSITY Notices</h3>
+                <button type="button" class="btn-text" id="markAllReadTopBtn">Mark read</button>
+              </div>
+              <div class="dropdown-body" id="notificationList"></div>
+            </div>
+          </div>
+
+          <!-- Active User Profile Pill -->
+          <button type="button" class="topbar-profile-btn" id="topbarProfileBtn" title="View Profile">
+            <img src="assets/images/default-avatar.svg" alt="User Avatar" class="topbar-avatar" id="topbarAvatar" />
+            <div class="topbar-user-info">
+              <span class="topbar-user-name" id="topbarStudentName">Racel Valiente</span>
+              <span class="topbar-user-meta" id="topbarStudentMeta">BSIT 2-2</span>
+            </div>
+          </button>
+
+          <!-- Topbar Logout Icon Button -->
+          <button type="button" class="icon-btn logout-icon-btn" id="topbarLogoutBtn"
+            title="Log Out / Return to Login Page" aria-label="Log Out">
+            <svg viewBox="0 0 24 24" width="19" height="19" stroke="currentColor" stroke-width="2" fill="none">
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+              <polyline points="16 17 21 12 16 7"></polyline>
+              <line x1="21" y1="12" x2="9" y2="12"></line>
+            </svg>
+          </button>
+        </div>
+      </header>
+
+      <!-- ==================== MODULE SECTIONS ==================== -->
+      <main class="content-area" id="mainContent">
+        <!-- STUDENT PORTAL MODULES -->
+        <section id="section-dashboard" class="module-section active">
+          <div id="dashboardContainer"></div>
+        </section>
+
+        <section id="section-profile" class="module-section" hidden>
+          <div id="profileContainer"></div>
+        </section>
+
+        <section id="section-subjects" class="module-section" hidden>
+          <div id="subjectsContainer"></div>
+        </section>
+
+        <section id="section-schedule" class="module-section" hidden>
+          <div id="scheduleContainer"></div>
+        </section>
+
+        <section id="section-grades" class="module-section" hidden>
+          <div id="gradesContainer"></div>
+        </section>
+
+        <section id="section-attendance" class="module-section" hidden>
+          <div id="attendanceContainer"></div>
+        </section>
+
+        <section id="section-tasks" class="module-section" hidden>
+          <div id="tasksContainer"></div>
+        </section>
+
+        <section id="section-announcements" class="module-section" hidden>
+          <div id="announcementsContainer"></div>
+        </section>
+
+        <section id="section-resources" class="module-section" hidden>
+          <div id="resourcesContainer"></div>
+        </section>
+
+        <!-- FACULTY PORTAL MODULES -->
+        <section id="section-faculty-dashboard" class="module-section" hidden>
+          <div id="facultyDashboardContainer"></div>
+        </section>
+
+        <section id="section-faculty-profile" class="module-section" hidden>
+          <div id="facultyProfileContainer"></div>
+        </section>
+
+        <section id="section-faculty-classes" class="module-section" hidden>
+          <div id="facultyClassesContainer"></div>
+        </section>
+
+        <section id="section-faculty-attendance" class="module-section" hidden>
+          <div id="facultyAttendanceContainer"></div>
+        </section>
+
+        <section id="section-faculty-grades" class="module-section" hidden>
+          <div id="facultyGradesContainer"></div>
+        </section>
+
+        <section id="section-faculty-tasks" class="module-section" hidden>
+          <div id="facultyTasksContainer"></div>
+        </section>
+
+        <section id="section-faculty-announcements" class="module-section" hidden>
+          <div id="facultyAnnouncementsContainer"></div>
+        </section>
+
+        <section id="section-faculty-applications" class="module-section" hidden>
+          <div id="facultyApplicationsContainer"></div>
+        </section>
+
+        <!-- APPLICANT PORTAL MODULES -->
+        <section id="section-applicant-landing" class="module-section" hidden>
+          <div id="applicantLandingContainer"></div>
+        </section>
+
+        <section id="section-applicant-form" class="module-section" hidden>
+          <div id="applicantFormContainer"></div>
+        </section>
+
+        <section id="section-applicant-status" class="module-section" hidden>
+          <div id="applicantStatusContainer"></div>
+        </section>
+
+        <!-- SHARED SETTINGS MODULE -->
+        <section id="section-settings" class="module-section" hidden>
+          <div id="settingsContainer"></div>
+        </section>
+      </main>
+
+      <footer class="app-footer">
+        <div>
+          <strong>BANTUG UNIVERSITY</strong> &mdash; Student Portal System (Student, Faculty &amp; Applicant
+          Demonstration)
+        </div>
+        <div class="footer-links">
+          <span>BSIT 2-2 Academic Project &bull; HTML5 &bull; CSS3 &bull; Vanilla JS &bull; localStorage</span>
+        </div>
+      </footer>
+    </div>
+  </div>
+
+  <!-- ==================== REUSABLE MODAL DIALOG ==================== -->
+  <div class="modal-backdrop" id="appModalBackdrop" hidden aria-hidden="true">
+    <div class="modal-dialog" role="dialog" aria-modal="true" aria-labelledby="appModalTitle">
+      <div class="modal-header">
+        <h2 class="modal-title" id="appModalTitle">Modal Title</h2>
+        <button type="button" class="icon-btn modal-close-btn" id="appModalCloseBtn" aria-label="Close Modal">
+          <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+      <div class="modal-body" id="appModalBody"></div>
+    </div>
+  </div>
+
+  <!-- ==================== REUSABLE CONFIRMATION DIALOG ==================== -->
+  <div class="modal-backdrop confirm-backdrop" id="confirmModalBackdrop" hidden aria-hidden="true">
+    <div class="modal-dialog modal-sm" role="alertdialog" aria-modal="true" aria-labelledby="confirmModalTitle">
+      <div class="modal-header">
+        <h2 class="modal-title" id="confirmModalTitle">Confirm Action</h2>
+      </div>
+      <div class="modal-body">
+        <p id="confirmModalMessage" class="confirm-message"></p>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-secondary" id="confirmCancelBtn">Cancel</button>
+          <button type="button" class="btn btn-danger" id="confirmAcceptBtn">Confirm</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== TOAST NOTIFICATION CONTAINER ==================== -->
+  <div class="toast-container" id="toastContainer" aria-live="polite" aria-atomic="true"></div>
+
+  <!-- ==================== APPLICATION SCRIPTS ==================== -->
+  <script src="js/storage.js"></script>
+  <script src="js/app.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/dashboard.js"></script>
+  <script src="js/profile.js"></script>
+  <script src="js/subjects.js"></script>
+  <script src="js/schedule.js"></script>
+  <script src="js/grades.js"></script>
+  <script src="js/attendance.js"></script>
+  <script src="js/tasks.js"></script>
+  <script src="js/announcements.js"></script>
+  <script src="js/resources.js"></script>
+  <script src="js/faculty.js"></script>
+  <script src="js/applicant.js"></script>
+  <script src="js/settings.js"></script>
+</body>
+
+</html>

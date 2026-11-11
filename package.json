@@ -1,0 +1,14 @@
+{
+  "name": "bantug-university-student-portal",
+  "version": "7.0.0",
+  "description": "BANTUG UNIVERSITY Student, Faculty, and Applicant Portal System (Node.js + XAMPP MySQL Backend)",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "seed": "node database/seed.js"
+  },
+  "dependencies": {
+    "mysql2": "^3.11.0"
+  }
+}
+
