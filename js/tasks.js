@@ -5,9 +5,9 @@
  *
  * Student Permissions Enforced:
  * - View assignments published by faculty (instructions, subjects, deadlines)
- * - Submit completed assignment via simulated submission form (text response)
- * - Mark assignment as completed
- * - View submission status (Pending, Submitted, Completed, Overdue)
+ * - Inspect full assignment details and connected subject learning resources
+ * - Submit completed assignment via submission modal (response notes & status)
+ * - Mark assignment as completed or reopen as pending
  * - Cannot modify faculty instructions, change deadlines, or delete assignments
  * ============================================================================
  */
@@ -16,6 +16,7 @@ const StudentHubTasks = (function () {
   const {
     escapeHtml,
     formatReadableDate,
+    isValidUrl,
     clearFormErrors,
     setFieldError,
     openModal,
@@ -29,6 +30,7 @@ const StudentHubTasks = (function () {
   let filterStatus = "All"; // "All" | "Pending" | "Submitted" | "Completed" | "Overdue"
   let filterSubject = "All";
   let sortBy = "deadline_asc"; // "deadline_asc" | "deadline_desc" | "priority"
+  let eventsBound = false;
 
   const PRIORITY_WEIGHT = { High: 3, Medium: 2, Low: 1 };
 
@@ -45,6 +47,240 @@ const StudentHubTasks = (function () {
     return "badge-neutral";
   }
 
+  function parseAcademicTerm(termStr) {
+    const raw = String(termStr || "").trim();
+    if (!raw) {
+      return { academicYear: "AY 2026\u20132027", semester: "2nd Semester" };
+    }
+    const parts = raw.split(/\u2022|\|/).map((p) => p.trim()).filter(Boolean);
+    return {
+      academicYear: parts[0] || "AY 2026\u20132027",
+      semester: parts[1] || "2nd Semester"
+    };
+  }
+
+  function resolveTaskSubjectInfo(task, state) {
+    const subjects = (state && state.subjects) || [];
+    const rawSubject = String(task.subject || "").trim();
+    let subjectCode = String(task.subjectCode || "").trim();
+    let subjectName = rawSubject;
+    let instructor = String(task.instructor || task.publishedBy || "").trim();
+
+    const matched = subjects.find((s) => {
+      if (subjectCode && s.code && s.code.toLowerCase() === subjectCode.toLowerCase()) {
+        return true;
+      }
+      if (rawSubject && s.code && rawSubject.toLowerCase().startsWith(s.code.toLowerCase())) {
+        return true;
+      }
+      return rawSubject && s.name && rawSubject.toLowerCase().includes(s.name.toLowerCase());
+    });
+
+    if (!subjectCode && rawSubject.includes(" - ")) {
+      subjectCode = rawSubject.split(" - ")[0].trim();
+    }
+    if (subjectCode && rawSubject.startsWith(`${subjectCode} - `)) {
+      subjectName = rawSubject.slice(subjectCode.length + 3).trim();
+    } else if (matched) {
+      if (!subjectCode) subjectCode = matched.code || "";
+      subjectName = matched.courseCode ? `${matched.courseCode} - ${matched.name}` : matched.name;
+    }
+
+    if (!instructor && matched && matched.instructor) {
+      instructor = matched.instructor;
+    }
+
+    return {
+      subjectCode: subjectCode || "SUBJ",
+      subjectName: subjectName || rawSubject || "Course Assignment",
+      instructor: instructor || "BANTUG UNIVERSITY Faculty"
+    };
+  }
+
+  function getDeadlineIndicator(task) {
+    if (task.status === "Completed") {
+      return { label: "Completed", className: "is-normal" };
+    }
+    if (task.status === "Submitted") {
+      return { label: "Turned In", className: "is-normal" };
+    }
+    const todayStr = StudentHubStorage.formatLocalDate(new Date());
+    const deadlineStr = String(task.deadline || "").trim();
+    if (!deadlineStr) {
+      return { label: "No Deadline Set", className: "is-normal" };
+    }
+    if (task.status === "Overdue" || deadlineStr < todayStr) {
+      return { label: "Past Due", className: "is-overdue" };
+    }
+    if (deadlineStr === todayStr) {
+      return { label: "Due Today", className: "is-soon" };
+    }
+
+    const todayMs = new Date(`${todayStr}T00:00:00`).getTime();
+    const dueMs = new Date(`${deadlineStr}T00:00:00`).getTime();
+    const diffDays = Math.round((dueMs - todayMs) / (1000 * 60 * 60 * 24));
+    if (diffDays <= 3) {
+      return {
+        label: `Due in ${diffDays} day${diffDays === 1 ? "" : "s"}`,
+        className: "is-soon"
+      };
+    }
+    return { label: `Due in ${diffDays} days`, className: "is-normal" };
+  }
+
+  function getRelatedResources(task, state) {
+    const resources = (state && state.resources) || [];
+    const taskSubject = String(task.subject || "").toLowerCase();
+    const taskCode = String(task.subjectCode || "").toLowerCase();
+    return resources.filter((r) => {
+      const resSub = String(r.subject || "").toLowerCase();
+      if (taskSubject && resSub === taskSubject) return true;
+      if (taskCode && resSub.startsWith(taskCode)) return true;
+      return false;
+    });
+  }
+
+  /**
+   * Open Read-Only Assignment Details Modal
+   */
+  function openDetailsModal(task) {
+    if (!task) return;
+    const state = StudentHubStorage.getState();
+    const studentNo = state.profile.studentNumber || "2025-BSIT-0202";
+    const meta = resolveTaskSubjectInfo(task, state);
+    const studentSub = task.submissions && task.submissions[studentNo];
+    const dateAssigned = task.dateAssigned || task.createdAt || "";
+    const relatedResources = getRelatedResources(task, state);
+    const deadlineInfo = getDeadlineIndicator(task);
+
+    const resourcesHtml =
+      relatedResources.length > 0
+        ? `
+          <div style="margin-bottom:6px;font-size:0.82rem;font-weight:700;color:var(--text-main);">
+            Related Subject Resources (${relatedResources.length})
+          </div>
+          <div class="task-detail-resources">
+            ${relatedResources
+              .map((res) => {
+                const safeUrl = isValidUrl && isValidUrl(res.url) ? res.url : "";
+                return `
+                  <div class="task-detail-resource-item">
+                    <div style="min-width:0;">
+                      <div style="font-weight:600;color:var(--text-main);">${escapeHtml(res.title)}</div>
+                      <div style="font-size:0.76rem;color:var(--text-muted);">${escapeHtml(
+                        res.category || "Learning Resource"
+                      )}</div>
+                    </div>
+                    ${
+                      safeUrl
+                        ? `<a href="${escapeHtml(
+                            safeUrl
+                          )}" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-secondary">Open Resource</a>`
+                        : ""
+                    }
+                  </div>
+                `;
+              })
+              .join("")}
+          </div>
+        `
+        : "";
+
+    const modalHtml = `
+      <div class="task-detail-header">
+        <div class="task-subject-cluster">
+          <span class="badge badge-primary">${escapeHtml(meta.subjectCode)}</span>
+          <span class="badge ${getPriorityBadge(task.priority)}">${escapeHtml(
+      task.priority || "Medium"
+    )} Priority</span>
+        </div>
+        <span class="badge ${getStatusBadge(task.status)}">${escapeHtml(task.status)}</span>
+      </div>
+
+      <h3 style="font-size:1.08rem;margin-bottom:12px;">${escapeHtml(task.title)}</h3>
+
+      <div class="task-detail-meta-grid">
+        <div>
+          <span class="task-detail-meta-label">Subject</span>
+          <span>${escapeHtml(meta.subjectName)}</span>
+        </div>
+        <div>
+          <span class="task-detail-meta-label">Instructor</span>
+          <span>${escapeHtml(meta.instructor)}</span>
+        </div>
+        <div>
+          <span class="task-detail-meta-label">Due Date</span>
+          <span>${escapeHtml(formatReadableDate(task.deadline))} <strong class="task-deadline-urgency ${
+      deadlineInfo.className
+    }">(${escapeHtml(deadlineInfo.label)})</strong></span>
+        </div>
+        ${
+          dateAssigned
+            ? `
+            <div>
+              <span class="task-detail-meta-label">Date Assigned</span>
+              <span>${escapeHtml(formatReadableDate(dateAssigned))}</span>
+            </div>
+          `
+            : `
+            <div>
+              <span class="task-detail-meta-label">Published By</span>
+              <span>${escapeHtml(task.publishedBy || meta.instructor)}</span>
+            </div>
+          `
+        }
+      </div>
+
+      <div class="task-detail-instructions">
+        <span class="task-detail-meta-label">Faculty Instructions</span>
+        <div>${escapeHtml(
+          task.description || "Follow course guidelines and submit before deadline."
+        )}</div>
+      </div>
+
+      ${
+        studentSub && studentSub.responseText
+          ? `
+          <div class="task-submission-preview" style="margin-bottom:14px;">
+            <div class="task-submission-preview-title">
+              Your Submission (${escapeHtml(studentSub.status)} &bull; ${escapeHtml(
+              formatReadableDate(studentSub.submittedAt)
+            )})
+            </div>
+            <div class="task-submission-preview-body">${escapeHtml(studentSub.responseText)}</div>
+          </div>
+        `
+          : ""
+      }
+
+      ${resourcesHtml}
+
+      <div class="modal-actions">
+        <button type="button" class="btn btn-secondary" id="closeTaskDetailsBtn">Close</button>
+        <button type="button" class="btn btn-primary" id="openSubmitFromDetailsBtn">
+          ${
+            task.status === "Submitted" || task.status === "Completed"
+              ? "Update Submission"
+              : "Submit Assignment"
+          }
+        </button>
+      </div>
+    `;
+
+    openModal(`Assignment Details — ${task.title}`, modalHtml, (bodyEl) => {
+      const closeBtn = bodyEl.querySelector("#closeTaskDetailsBtn");
+      if (closeBtn) closeBtn.addEventListener("click", closeModal);
+
+      const submitBtn = bodyEl.querySelector("#openSubmitFromDetailsBtn");
+      if (submitBtn) {
+        submitBtn.addEventListener("click", () => {
+          closeModal();
+          openSubmissionModal(task);
+        });
+      }
+    });
+  }
+
   /**
    * Open Student Assignment Submission Modal
    * Associates submission with the assignment ID and active student account
@@ -56,6 +292,7 @@ const StudentHubTasks = (function () {
     const state = StudentHubStorage.getState();
     const studentNo = state.profile.studentNumber || "2025-BSIT-0202";
     const studentName = state.profile.fullName || "Racel Valiente (Demo Student)";
+    const meta = resolveTaskSubjectInfo(task, state);
     const existingSub =
       (task.submissions && task.submissions[studentNo]) || {
         responseText: "",
@@ -77,6 +314,7 @@ const StudentHubTasks = (function () {
           )}
         </p>
         <div style="font-size:0.78rem;color:var(--text-muted);display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;">
+          <span><strong>Instructor:</strong> ${escapeHtml(meta.instructor)}</span>
           <span><strong>Deadline:</strong> ${escapeHtml(formatReadableDate(task.deadline))}</span>
           <span><strong>Student Account:</strong> ${escapeHtml(studentName)} (${escapeHtml(
       studentNo
@@ -216,287 +454,26 @@ const StudentHubTasks = (function () {
     showToast(`Assignment "${target.title}" status updated to ${newStatus}.`, "success");
   }
 
-  function render() {
-    const container = document.getElementById("tasksContainer");
-    if (!container) return;
+  function updateClearFiltersVisibility() {
+    const clearBtn = document.getElementById("taskClearFiltersBtn");
+    if (!clearBtn) return;
+    const hasFilter =
+      searchQuery.trim() !== "" ||
+      filterStatus !== "All" ||
+      filterSubject !== "All" ||
+      sortBy !== "deadline_asc";
+    clearBtn.hidden = !hasFilter;
+  }
 
-    const state = StudentHubStorage.getState();
-    const tasks = state.tasks || [];
-    const studentNo = state.profile.studentNumber || "2025-BSIT-0202";
+  function bindStaticEvents() {
+    if (eventsBound) return;
+    eventsBound = true;
 
-    const pendingCount = tasks.filter((t) => t.status === "Pending").length;
-    const submittedCount = tasks.filter((t) => t.status === "Submitted").length;
-    const completedCount = tasks.filter((t) => t.status === "Completed").length;
-    const overdueCount = tasks.filter((t) => t.status === "Overdue").length;
-
-    const subjectOptions = Array.from(
-      new Set([...StudentHubStorage.getSubjectList(), ...tasks.map((t) => t.subject)])
-    );
-
-    const filtered = tasks
-      .filter((t) => {
-        const matchStatus = filterStatus === "All" || t.status === filterStatus;
-        const matchSubject = filterSubject === "All" || t.subject === filterSubject;
-        const q = searchQuery.trim().toLowerCase();
-        const matchQuery =
-          !q ||
-          t.title.toLowerCase().includes(q) ||
-          t.subject.toLowerCase().includes(q) ||
-          (t.description && t.description.toLowerCase().includes(q));
-        return matchStatus && matchSubject && matchQuery;
-      })
-      .sort((a, b) => {
-        if (sortBy === "deadline_asc") {
-          return (a.deadline || "").localeCompare(b.deadline || "");
-        }
-        if (sortBy === "deadline_desc") {
-          return (b.deadline || "").localeCompare(a.deadline || "");
-        }
-        if (sortBy === "priority") {
-          return (PRIORITY_WEIGHT[b.priority] || 0) - (PRIORITY_WEIGHT[a.priority] || 0);
-        }
-        return 0;
-      });
-
-    container.innerHTML = `
-      <div class="section-header">
-        <div class="section-header-info">
-          <h2>BANTUG UNIVERSITY &mdash; Academic Task Manager (${escapeHtml(
-            state.profile.section || "BSIT 2-2"
-          )})</h2>
-          <p>View assignments published by your BSIT 2-2 instructors, submit your completed work, and track your submission statuses.</p>
-        </div>
-        <div class="section-header-actions">
-          <span class="badge badge-info" style="padding:8px 14px;font-size:0.82rem;">
-            Student Account: ${escapeHtml(studentNo)}
-          </span>
-        </div>
-      </div>
-
-      <div class="notice-banner">
-        <div>
-          <strong>Assignment Submission Policy:</strong> Assignments, instructions, and deadlines are published and managed by <strong>BANTUG UNIVERSITY Faculty</strong>. Students can submit responses or mark assignments as completed, which automatically updates the assignment status.
-        </div>
-      </div>
-
-      <!-- Task Summary Cards -->
-      <div class="stats-grid">
-        <div class="stat-card">
-          <div class="stat-info">
-            <span class="stat-label">Pending Assignments</span>
-            <span class="stat-value">${pendingCount}</span>
-            <span class="stat-sub">Awaiting student submission</span>
-          </div>
-          <div class="stat-icon icon-blue">
-            <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none">
-              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-              <polyline points="14 2 14 8 20 8"></polyline>
-            </svg>
-          </div>
-        </div>
-
-        <div class="stat-card">
-          <div class="stat-info">
-            <span class="stat-label">Submitted Assignments</span>
-            <span class="stat-value">${submittedCount}</span>
-            <span class="stat-sub">Turned in by ${escapeHtml(studentNo)}</span>
-          </div>
-          <div class="stat-icon icon-purple">
-            <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none">
-              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
-              <polyline points="22 4 12 14.01 9 11.01"></polyline>
-            </svg>
-          </div>
-        </div>
-
-        <div class="stat-card">
-          <div class="stat-info">
-            <span class="stat-label">Completed Assignments</span>
-            <span class="stat-value">${completedCount}</span>
-            <span class="stat-sub">Finished academic deliverables</span>
-          </div>
-          <div class="stat-icon icon-green">
-            <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none">
-              <polyline points="20 6 9 17 4 12"></polyline>
-            </svg>
-          </div>
-        </div>
-
-        <div class="stat-card">
-          <div class="stat-info">
-            <span class="stat-label">Overdue Assignments</span>
-            <span class="stat-value" style="${overdueCount > 0 ? "color:var(--danger-text);" : ""}">${overdueCount}</span>
-            <span class="stat-sub">${
-              overdueCount > 0 ? "Deadline passed without submission" : "No overdue assignments"
-            }</span>
-          </div>
-          <div class="stat-icon icon-amber">
-            <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none">
-              <circle cx="12" cy="12" r="10"></circle>
-              <line x1="12" y1="8" x2="12" y2="12"></line>
-              <line x1="12" y1="16" x2="12.01" y2="16"></line>
-            </svg>
-          </div>
-        </div>
-      </div>
-
-      <!-- Search, Filter & Sort Toolbar -->
-      <div class="toolbar-row">
-        <div class="toolbar-group">
-          <input
-            type="search"
-            id="taskSearchInput"
-            class="form-control"
-            style="max-width:250px;"
-            placeholder="Search assignment or instructions..."
-            value="${escapeHtml(searchQuery)}"
-          />
-
-          <select id="taskFilterStatus" class="form-control" style="max-width:175px;" aria-label="Filter by Status">
-            <option value="All" ${filterStatus === "All" ? "selected" : ""}>All Statuses (${tasks.length})</option>
-            <option value="Pending" ${filterStatus === "Pending" ? "selected" : ""}>Pending (${pendingCount})</option>
-            <option value="Submitted" ${filterStatus === "Submitted" ? "selected" : ""}>Submitted (${submittedCount})</option>
-            <option value="Completed" ${filterStatus === "Completed" ? "selected" : ""}>Completed (${completedCount})</option>
-            <option value="Overdue" ${filterStatus === "Overdue" ? "selected" : ""}>Overdue (${overdueCount})</option>
-          </select>
-
-          <select id="taskFilterSubject" class="form-control" style="max-width:260px;" aria-label="Filter by Subject">
-            <option value="All" ${filterSubject === "All" ? "selected" : ""}>All Subjects</option>
-            ${subjectOptions
-              .map(
-                (s) =>
-                  `<option value="${escapeHtml(s)}" ${
-                    filterSubject === s ? "selected" : ""
-                  }>${escapeHtml(s)}</option>`
-              )
-              .join("")}
-          </select>
-
-          <select id="taskSortSelect" class="form-control" style="max-width:195px;" aria-label="Sort Tasks">
-            <option value="deadline_asc" ${sortBy === "deadline_asc" ? "selected" : ""}>Sort: Earliest Deadline</option>
-            <option value="deadline_desc" ${sortBy === "deadline_desc" ? "selected" : ""}>Sort: Latest Deadline</option>
-            <option value="priority" ${sortBy === "priority" ? "selected" : ""}>Sort: Highest Priority</option>
-          </select>
-        </div>
-      </div>
-
-      <!-- Task Cards Grid -->
-      ${
-        filtered.length === 0
-          ? `
-          <div class="card">
-            <div class="empty-state">
-              <h3>No Matching Assignments Found</h3>
-              <p>No faculty-published assignments match your current filter criteria.</p>
-            </div>
-          </div>
-        `
-          : `
-          <div class="tasks-grid">
-            ${filtered
-              .map((t) => {
-                const isDone = t.status === "Completed";
-                const isSubmitted = t.status === "Submitted";
-                const isOverdue = t.status === "Overdue";
-                const studentSub = t.submissions && t.submissions[studentNo];
-
-                return `
-                  <div class="task-card ${isDone ? "is-completed" : ""} ${
-                  isOverdue ? "is-overdue" : ""
-                }">
-                    <div>
-                      <div class="task-top">
-                        <div class="task-check-wrap">
-                          <input
-                            type="checkbox"
-                            class="task-checkbox toggle-task-done"
-                            data-id="${escapeHtml(t.id)}"
-                            ${isDone ? "checked" : ""}
-                            title="${isDone ? "Reopen as Pending" : "Mark as Completed"}"
-                            aria-label="Mark ${escapeHtml(t.title)} as Completed"
-                          />
-                          <div>
-                            <div class="task-title">${escapeHtml(t.title)}</div>
-                            <div style="font-size:0.78rem;color:var(--royal-600);font-weight:600;margin-top:2px;">
-                              ${escapeHtml(t.subject)}
-                            </div>
-                          </div>
-                        </div>
-                        <span class="badge ${getStatusBadge(t.status)}">${escapeHtml(t.status)}</span>
-                      </div>
-
-                      <p class="task-desc">
-                        <strong>Instructions:</strong> ${escapeHtml(
-                          t.description || "Follow course guidelines and submit before deadline."
-                        )}
-                      </p>
-
-                      ${
-                        studentSub && studentSub.responseText
-                          ? `
-                          <div style="margin-top:10px;padding:10px 12px;background:var(--bg-surface-alt);border-left:3px solid var(--royal-600);border-radius:6px;font-size:0.8rem;">
-                            <div style="font-weight:600;color:var(--text-main);margin-bottom:2px;">
-                              Your Submission (${escapeHtml(studentSub.status)} &bull; ${escapeHtml(
-                              formatReadableDate(studentSub.submittedAt)
-                            )}):
-                            </div>
-                            <div style="color:var(--text-secondary);">${escapeHtml(
-                              studentSub.responseText
-                            )}</div>
-                          </div>
-                        `
-                          : ""
-                      }
-                    </div>
-
-                    <div class="task-footer">
-                      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-                        <span class="badge ${getPriorityBadge(t.priority)}">${escapeHtml(
-                  t.priority || "Medium"
-                )} Priority</span>
-                        <span style="font-size:0.78rem;color:var(--text-secondary);">
-                          <strong>Deadline:</strong> ${escapeHtml(formatReadableDate(t.deadline))}
-                        </span>
-                      </div>
-                      <div class="table-actions">
-                        <button
-                          type="button"
-                          class="btn btn-sm btn-primary submit-task-btn"
-                          data-id="${escapeHtml(t.id)}"
-                        >
-                          ${isSubmitted || isDone ? "Update Submission" : "Submit Assignment"}
-                        </button>
-                        ${
-                          !isDone
-                            ? `<button type="button" class="btn btn-sm btn-secondary mark-complete-btn" data-id="${escapeHtml(
-                                t.id
-                              )}">Mark Completed</button>`
-                            : `<button type="button" class="btn btn-sm btn-secondary mark-pending-btn" data-id="${escapeHtml(
-                                t.id
-                              )}">Reopen</button>`
-                        }
-                      </div>
-                    </div>
-                  </div>
-                `;
-              })
-              .join("")}
-          </div>
-        `
-      }
-    `;
-
-    // Bind Search & Filters
     const searchInput = document.getElementById("taskSearchInput");
     if (searchInput) {
       searchInput.addEventListener("input", (e) => {
         searchQuery = e.target.value;
         render();
-        const el = document.getElementById("taskSearchInput");
-        if (el) {
-          el.focus();
-          el.setSelectionRange(searchQuery.length, searchQuery.length);
-        }
       });
     }
 
@@ -524,15 +501,348 @@ const StudentHubTasks = (function () {
       });
     }
 
-    // Bind Checkboxes & Action Buttons
-    container.querySelectorAll(".toggle-task-done").forEach((chk) => {
+    const clearBtn = document.getElementById("taskClearFiltersBtn");
+    if (clearBtn) {
+      clearBtn.addEventListener("click", () => {
+        searchQuery = "";
+        filterStatus = "All";
+        filterSubject = "All";
+        sortBy = "deadline_asc";
+        if (searchInput) searchInput.value = "";
+        if (statusSel) statusSel.value = "All";
+        if (subSel) subSel.value = "All";
+        if (sortSel) sortSel.value = "deadline_asc";
+        render();
+      });
+    }
+
+    document.querySelectorAll("[data-status-tab]").forEach((tabBtn) => {
+      tabBtn.addEventListener("click", () => {
+        filterStatus = tabBtn.getAttribute("data-status-tab") || "All";
+        render();
+      });
+    });
+
+    document.querySelectorAll("[data-task-status-filter]").forEach((cardEl) => {
+      const activate = () => {
+        filterStatus = cardEl.getAttribute("data-task-status-filter") || "All";
+        render();
+      };
+      cardEl.addEventListener("click", activate);
+      cardEl.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          activate();
+        }
+      });
+    });
+  }
+
+  function render() {
+    const container = document.getElementById("tasksContainer");
+    const listHost = document.getElementById("tasksListHost");
+    if (!container || !listHost) return;
+
+    bindStaticEvents();
+
+    const state = StudentHubStorage.getState();
+    const tasks = state.tasks || [];
+    const profile = state.profile || {};
+    const studentNo = profile.studentNumber || "2025-BSIT-0202";
+    const sectionName = profile.section || "BSIT 2-2";
+    const term = parseAcademicTerm(profile.academicYearTerm);
+
+    const pendingCount = tasks.filter((t) => t.status === "Pending").length;
+    const submittedCount = tasks.filter((t) => t.status === "Submitted").length;
+    const completedCount = tasks.filter((t) => t.status === "Completed").length;
+    const overdueCount = tasks.filter((t) => t.status === "Overdue").length;
+
+    // 1. Hydrate Overview Pills & Account Badge
+    const sectionPill = document.getElementById("tasksSectionPill");
+    if (sectionPill) sectionPill.textContent = `Section: ${sectionName}`;
+
+    const ayPill = document.getElementById("tasksAcademicYearPill");
+    if (ayPill) ayPill.textContent = `Academic Year: ${term.academicYear}`;
+
+    const semPill = document.getElementById("tasksSemesterPill");
+    if (semPill) semPill.textContent = `Semester: ${term.semester}`;
+
+    const totalPill = document.getElementById("tasksOverviewTotalPill");
+    if (totalPill) totalPill.textContent = `Total: ${tasks.length}`;
+
+    const pendingPill = document.getElementById("tasksOverviewPendingPill");
+    if (pendingPill) pendingPill.textContent = `Pending: ${pendingCount}`;
+
+    const completedPill = document.getElementById("tasksOverviewCompletedPill");
+    if (completedPill) completedPill.textContent = `Completed: ${completedCount}`;
+
+    const overduePill = document.getElementById("tasksOverviewOverduePill");
+    if (overduePill) overduePill.textContent = `Overdue: ${overdueCount}`;
+
+    const accountBadge = document.getElementById("tasksAccountBadge");
+    if (accountBadge) accountBadge.textContent = `Student Account: ${studentNo}`;
+
+    // 2. Hydrate Summary Cards
+    const setElText = (id, val) => {
+      const el = document.getElementById(id);
+      if (el) el.textContent = String(val);
+    };
+    setElText("taskStatAll", tasks.length);
+    setElText("taskStatPending", pendingCount);
+    setElText("taskStatSubmitted", submittedCount);
+    setElText("taskStatSubmittedSub", `Turned in by ${studentNo}`);
+    setElText("taskStatCompleted", completedCount);
+    setElText("taskStatOverdue", overdueCount);
+    setElText(
+      "taskStatOverdueSub",
+      overdueCount > 0 ? "Deadline passed without submission" : "No overdue assignments"
+    );
+
+    // Active state on Summary Cards & Tabs
+    document.querySelectorAll("[data-task-status-filter]").forEach((cardEl) => {
+      const target = cardEl.getAttribute("data-task-status-filter");
+      cardEl.classList.toggle("is-active-filter", target === filterStatus);
+    });
+
+    setElText("tabCountAll", tasks.length);
+    setElText("tabCountPending", pendingCount);
+    setElText("tabCountSubmitted", submittedCount);
+    setElText("tabCountCompleted", completedCount);
+    setElText("tabCountOverdue", overdueCount);
+
+    document.querySelectorAll("[data-status-tab]").forEach((tabBtn) => {
+      const target = tabBtn.getAttribute("data-status-tab");
+      const active = target === filterStatus;
+      tabBtn.classList.toggle("is-active", active);
+      tabBtn.setAttribute("aria-selected", active ? "true" : "false");
+    });
+
+    // 3. Populate Filter Dropdowns
+    const subjectOptions = Array.from(
+      new Set([...StudentHubStorage.getSubjectList(), ...tasks.map((t) => t.subject).filter(Boolean)])
+    );
+    const subSel = document.getElementById("taskFilterSubject");
+    if (subSel) {
+      subSel.innerHTML = [
+        `<option value="All">All Subjects</option>`,
+        ...subjectOptions.map(
+          (s) =>
+            `<option value="${escapeHtml(s)}" ${
+              filterSubject === s ? "selected" : ""
+            }>${escapeHtml(s)}</option>`
+        )
+      ].join("");
+    }
+
+    const statusSel = document.getElementById("taskFilterStatus");
+    if (statusSel) {
+      statusSel.innerHTML = `
+        <option value="All" ${filterStatus === "All" ? "selected" : ""}>All Statuses (${tasks.length})</option>
+        <option value="Pending" ${filterStatus === "Pending" ? "selected" : ""}>Pending (${pendingCount})</option>
+        <option value="Submitted" ${filterStatus === "Submitted" ? "selected" : ""}>Submitted (${submittedCount})</option>
+        <option value="Completed" ${filterStatus === "Completed" ? "selected" : ""}>Completed (${completedCount})</option>
+        <option value="Overdue" ${filterStatus === "Overdue" ? "selected" : ""}>Overdue (${overdueCount})</option>
+      `;
+    }
+
+    const sortSel = document.getElementById("taskSortSelect");
+    if (sortSel) sortSel.value = sortBy;
+
+    updateClearFiltersVisibility();
+
+    // 4. Filter & Sort Assignments
+    const filtered = tasks
+      .filter((t) => {
+        const matchStatus = filterStatus === "All" || t.status === filterStatus;
+        const matchSubject = filterSubject === "All" || t.subject === filterSubject;
+        const q = searchQuery.trim().toLowerCase();
+        const meta = resolveTaskSubjectInfo(t, state);
+        const matchQuery =
+          !q ||
+          (t.title && t.title.toLowerCase().includes(q)) ||
+          (t.subject && t.subject.toLowerCase().includes(q)) ||
+          meta.subjectCode.toLowerCase().includes(q) ||
+          meta.instructor.toLowerCase().includes(q) ||
+          (t.description && t.description.toLowerCase().includes(q));
+        return matchStatus && matchSubject && matchQuery;
+      })
+      .sort((a, b) => {
+        if (sortBy === "deadline_asc") {
+          return (a.deadline || "").localeCompare(b.deadline || "");
+        }
+        if (sortBy === "deadline_desc") {
+          return (b.deadline || "").localeCompare(a.deadline || "");
+        }
+        if (sortBy === "priority") {
+          return (PRIORITY_WEIGHT[b.priority] || 0) - (PRIORITY_WEIGHT[a.priority] || 0);
+        }
+        return 0;
+      });
+
+    // 5. Render Assignment Cards
+    if (filtered.length === 0) {
+      listHost.innerHTML = `
+        <div class="card">
+          <div class="empty-state">
+            <h3>No Matching Assignments Found</h3>
+            <p>No faculty-published assignments match your current filter criteria.</p>
+          </div>
+        </div>
+      `;
+      return;
+    }
+
+    listHost.innerHTML = `
+      <div class="tasks-grid">
+        ${filtered
+          .map((t) => {
+            const isDone = t.status === "Completed";
+            const isSubmitted = t.status === "Submitted";
+            const isOverdue = t.status === "Overdue";
+            const statusClass = isDone
+              ? "is-completed"
+              : isOverdue
+              ? "is-overdue"
+              : isSubmitted
+              ? "is-submitted"
+              : "is-pending";
+            const studentSub = t.submissions && t.submissions[studentNo];
+            const meta = resolveTaskSubjectInfo(t, state);
+            const deadlineInfo = getDeadlineIndicator(t);
+            const dateAssigned = t.dateAssigned || t.createdAt || "";
+
+            return `
+              <article class="task-card ${statusClass}" data-task-id="${escapeHtml(t.id)}">
+                <div>
+                  <div class="task-card-header-badges">
+                    <div class="task-subject-cluster">
+                      <span class="badge badge-primary task-subject-code-pill">${escapeHtml(
+                        meta.subjectCode
+                      )}</span>
+                      <span class="task-subject-name-text">${escapeHtml(meta.subjectName)}</span>
+                    </div>
+                    <span class="badge ${getStatusBadge(t.status)}">${escapeHtml(t.status)}</span>
+                  </div>
+
+                  <div class="task-top">
+                    <div class="task-check-wrap">
+                      <input
+                        type="checkbox"
+                        class="task-checkbox toggle-task-done"
+                        data-id="${escapeHtml(t.id)}"
+                        ${isDone ? "checked" : ""}
+                        title="${isDone ? "Reopen as Pending" : "Mark as Completed"}"
+                        aria-label="Mark ${escapeHtml(t.title)} as Completed"
+                      />
+                      <div>
+                        <div class="task-title">${escapeHtml(t.title)}</div>
+                        <div class="task-instructor-line">
+                          <strong>Instructor:</strong> ${escapeHtml(meta.instructor)}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <p class="task-desc">
+                    <strong>Instructions:</strong> ${escapeHtml(
+                      t.description || "Follow course guidelines and submit before deadline."
+                    )}
+                  </p>
+
+                  <div class="task-meta-grid">
+                    ${
+                      dateAssigned
+                        ? `
+                        <div class="task-meta-item">
+                          <strong>Assigned:</strong>
+                          <span>${escapeHtml(formatReadableDate(dateAssigned))}</span>
+                        </div>
+                      `
+                        : ""
+                    }
+                    <div class="task-meta-item">
+                      <strong>Due:</strong>
+                      <span>${escapeHtml(formatReadableDate(t.deadline))}</span>
+                      <span class="task-deadline-urgency ${deadlineInfo.className}">(${escapeHtml(
+              deadlineInfo.label
+            )})</span>
+                    </div>
+                    <div class="task-meta-item">
+                      <span class="badge ${getPriorityBadge(t.priority)}">${escapeHtml(
+              t.priority || "Medium"
+            )} Priority</span>
+                    </div>
+                  </div>
+
+                  ${
+                    studentSub && studentSub.responseText
+                      ? `
+                      <div class="task-submission-preview">
+                        <div class="task-submission-preview-title">
+                          Your Submission (${escapeHtml(studentSub.status)} &bull; ${escapeHtml(
+                          formatReadableDate(studentSub.submittedAt)
+                        )}):
+                        </div>
+                        <div class="task-submission-preview-body">${escapeHtml(
+                          studentSub.responseText
+                        )}</div>
+                      </div>
+                    `
+                      : ""
+                  }
+                </div>
+
+                <div class="task-footer">
+                  <button
+                    type="button"
+                    class="btn btn-sm btn-secondary view-task-details-btn"
+                    data-id="${escapeHtml(t.id)}"
+                  >
+                    View Details
+                  </button>
+                  <div class="table-actions">
+                    <button
+                      type="button"
+                      class="btn btn-sm btn-primary submit-task-btn"
+                      data-id="${escapeHtml(t.id)}"
+                    >
+                      ${isSubmitted || isDone ? "Update Submission" : "Submit Assignment"}
+                    </button>
+                    ${
+                      !isDone
+                        ? `<button type="button" class="btn btn-sm btn-secondary mark-complete-btn" data-id="${escapeHtml(
+                            t.id
+                          )}">Mark Completed</button>`
+                        : `<button type="button" class="btn btn-sm btn-secondary mark-pending-btn" data-id="${escapeHtml(
+                            t.id
+                          )}">Reopen</button>`
+                    }
+                  </div>
+                </div>
+              </article>
+            `;
+          })
+          .join("")}
+      </div>
+    `;
+
+    // 6. Bind Card Action Handlers
+    listHost.querySelectorAll(".toggle-task-done").forEach((chk) => {
       chk.addEventListener("change", () => {
         const id = chk.getAttribute("data-id");
         markTaskStatus(id, chk.checked ? "Completed" : "Pending");
       });
     });
 
-    container.querySelectorAll(".submit-task-btn").forEach((btn) => {
+    listHost.querySelectorAll(".view-task-details-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const id = btn.getAttribute("data-id");
+        const task = state.tasks.find((t) => t.id === id);
+        if (task) openDetailsModal(task);
+      });
+    });
+
+    listHost.querySelectorAll(".submit-task-btn").forEach((btn) => {
       btn.addEventListener("click", () => {
         const id = btn.getAttribute("data-id");
         const task = state.tasks.find((t) => t.id === id);
@@ -540,14 +850,14 @@ const StudentHubTasks = (function () {
       });
     });
 
-    container.querySelectorAll(".mark-complete-btn").forEach((btn) => {
+    listHost.querySelectorAll(".mark-complete-btn").forEach((btn) => {
       btn.addEventListener("click", () => {
         const id = btn.getAttribute("data-id");
         markTaskStatus(id, "Completed");
       });
     });
 
-    container.querySelectorAll(".mark-pending-btn").forEach((btn) => {
+    listHost.querySelectorAll(".mark-pending-btn").forEach((btn) => {
       btn.addEventListener("click", () => {
         const id = btn.getAttribute("data-id");
         markTaskStatus(id, "Pending");
@@ -555,7 +865,7 @@ const StudentHubTasks = (function () {
     });
   }
 
-  return { render, openSubmissionModal, markTaskStatus };
+  return { render, openDetailsModal, openSubmissionModal, markTaskStatus };
 })();
 
 window.StudentHubTasks = StudentHubTasks;

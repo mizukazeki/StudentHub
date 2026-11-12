@@ -1,0 +1,226 @@
+        <!-- ==================== STUDENT PORTAL: DASHBOARD MODULE ==================== -->
+        <section id="section-dashboard" class="module-section active">
+          <div id="dashboardContainer">
+            <!-- 1. Welcome Hero Banner & Student Information -->
+            <div class="hero-banner student-dashboard-hero">
+              <div class="hero-left">
+                <img
+                  id="dashHeroAvatar"
+                  src="assets/images/default-avatar.svg"
+                  alt="Student Avatar"
+                  class="hero-avatar"
+                />
+                <div>
+                  <div class="hero-greeting">BANTUG UNIVERSITY &bull; Student Portal</div>
+                  <h2 class="hero-title" id="dashWelcomeTitle">Welcome</h2>
+                  <div class="hero-meta">
+                    <span class="hero-pill" id="dashStudentNumberPill">Student No: &mdash;</span>
+                    <span class="hero-pill" id="dashCoursePill">&mdash;</span>
+                    <span class="hero-pill" id="dashYearSectionPill">&mdash;</span>
+                    <span class="hero-pill" id="dashTermPill">2nd Sem, AY 2026&ndash;2027</span>
+                  </div>
+                </div>
+              </div>
+              <div class="hero-actions">
+                <button type="button" class="btn btn-hero" data-nav="profile">My Profile</button>
+                <button type="button" class="btn btn-hero" id="dashHeroSubjectsBtn" data-nav="subjects">
+                  My Subjects (0)
+                </button>
+                <button type="button" class="btn btn-primary" data-nav="schedule">Class Schedule</button>
+              </div>
+            </div>
+
+            <!-- 2. Four Overview Summary Cards -->
+            <div class="stats-grid student-dashboard-stats">
+              <div class="stat-card" data-nav="subjects" title="Open My Subjects">
+                <div class="stat-info">
+                  <span class="stat-label">My Subjects</span>
+                  <span class="stat-value" id="dashStatSubjectsValue">0</span>
+                  <span class="stat-sub" id="dashStatSubjectsSub">View All &rarr;</span>
+                </div>
+                <div class="stat-icon icon-blue">
+                  <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none">
+                    <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+                    <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+                  </svg>
+                </div>
+              </div>
+
+              <div class="stat-card" data-nav="grades" title="View Read-Only Grades">
+                <div class="stat-info">
+                  <span class="stat-label">Overall Grade Average</span>
+                  <span class="stat-value" id="dashStatGradesValue">No grade recorded.</span>
+                  <span class="stat-sub" id="dashStatGradesSub">Awaiting faculty grade entry</span>
+                </div>
+                <div class="stat-icon icon-green">
+                  <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none">
+                    <path d="M22 10v6M2 10l10-5 10 5-10 5z"></path>
+                    <path d="M6 12v5c3 3 9 3 12 0v-5"></path>
+                  </svg>
+                </div>
+              </div>
+
+              <div class="stat-card" data-nav="attendance" title="View Attendance Records">
+                <div class="stat-info">
+                  <span class="stat-label">Attendance Percentage</span>
+                  <span class="stat-value" id="dashStatAttendanceValue">100%</span>
+                  <span class="stat-sub" id="dashStatAttendanceSub">0 Present &bull; 0 Late &bull; 0 Absent</span>
+                </div>
+                <div class="stat-icon icon-purple">
+                  <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none">
+                    <path d="M9 11l3 3L22 4"></path>
+                    <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path>
+                  </svg>
+                </div>
+              </div>
+
+              <div class="stat-card" data-nav="tasks" title="View Academic Task Manager">
+                <div class="stat-info">
+                  <span class="stat-label">Pending Assignments</span>
+                  <span class="stat-value" id="dashStatTasksValue">0</span>
+                  <span class="stat-sub" id="dashStatTasksSub">0 Submitted / Completed</span>
+                </div>
+                <div class="stat-icon icon-amber">
+                  <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <polyline points="12 6 12 12 16 14"></polyline>
+                  </svg>
+                </div>
+              </div>
+            </div>
+
+            <!-- 3. Two-Column Dashboard Content Grid -->
+            <div class="dashboard-grid">
+              <!-- Left Column: Today's Class Schedule, Enrolled Subjects Preview, Upcoming Assignments -->
+              <div class="dashboard-col">
+                <!-- Today's & Upcoming Classes Widget -->
+                <div class="card dash-card">
+                  <div class="card-header">
+                    <div class="dash-card-title-group">
+                      <h3 class="card-title">
+                        <span id="dashScheduleHeading">Today's &amp; Upcoming Classes</span>
+                        <span class="badge badge-primary" id="dashScheduleSectionBadge">BSIT 2-2</span>
+                      </h3>
+                      <p class="card-subtitle" id="dashScheduleSubtitle">Chronological class schedule and room assignments</p>
+                    </div>
+                    <button type="button" class="btn-text" data-nav="schedule">Full Timetable &rarr;</button>
+                  </div>
+                  <div class="dash-list" id="dashScheduleList"></div>
+                </div>
+
+                <!-- My Subjects Summary & Grades Shortcut Widget -->
+                <div class="card dash-card">
+                  <div class="card-header">
+                    <div class="dash-card-title-group">
+                      <h3 class="card-title">
+                        <span id="dashSubjectsHeading">My Subjects (BSIT 2-2)</span>
+                        <span class="badge badge-primary" id="dashSubjectsCountBadge">0 Total Subjects</span>
+                      </h3>
+                      <p class="card-subtitle">Enrolled subject load and scheduled room summary</p>
+                    </div>
+                    <button type="button" class="btn btn-sm btn-primary" data-nav="subjects">
+                      Open My Subjects &rarr;
+                    </button>
+                  </div>
+                  <div id="dashSubjectsPreviewContainer"></div>
+                </div>
+
+                <!-- Upcoming Assignments Widget -->
+                <div class="card dash-card">
+                  <div class="card-header">
+                    <div class="dash-card-title-group">
+                      <h3 class="card-title">
+                        <span>Upcoming Assignments &amp; Tasks</span>
+                        <span id="dashTasksStatusBadgeWrap"></span>
+                      </h3>
+                      <p class="card-subtitle">Quick completion and submission shortcuts</p>
+                    </div>
+                    <button type="button" class="btn-text" data-nav="tasks">Task Manager &rarr;</button>
+                  </div>
+                  <div id="dashTasksPreviewContainer"></div>
+                </div>
+              </div>
+
+              <!-- Right Column: Academic Performance Overview, Attendance Summary, Recent Announcements -->
+              <div class="dashboard-col">
+                <!-- Academic Performance Overview Widget -->
+                <div class="card dash-card">
+                  <div class="card-header">
+                    <div class="dash-card-title-group">
+                      <h3 class="card-title">
+                        <span>Academic Performance</span>
+                        <span class="badge badge-neutral" id="dashPerfGwaBadge">GWA Pending</span>
+                      </h3>
+                      <p class="card-subtitle">Current GWA, academic standing, and subject ratings</p>
+                    </div>
+                    <button type="button" class="btn-text" data-nav="grades">My Grades &rarr;</button>
+                  </div>
+                  <div class="dash-perf-box">
+                    <div class="dash-perf-term" id="dashPerfTermLabel">2nd Sem, AY 2026&ndash;2027</div>
+                    <div class="dash-perf-score" id="dashPerfScore">—</div>
+                    <div class="dash-perf-standing">
+                      <span class="badge badge-neutral" id="dashPerfStandingBadge">No Recorded Grades</span>
+                    </div>
+                  </div>
+                  <div class="dash-perf-meta-box">
+                    <div class="dash-perf-meta-row">
+                      <span>Academic Standing</span>
+                      <span id="dashPerfStandingText">Awaiting faculty grades</span>
+                    </div>
+                    <div class="dash-perf-meta-row">
+                      <span>Graded Subjects</span>
+                      <span id="dashPerfGradedMeta">0 of 0 subjects</span>
+                    </div>
+                  </div>
+                  <h4 class="dash-perf-heading">Subject Ratings Overview</h4>
+                  <div class="dash-perf-bars" id="dashPerfBars"></div>
+                </div>
+
+                <!-- Attendance Summary Widget -->
+                <div class="card dash-card">
+                  <div class="card-header">
+                    <div class="dash-card-title-group">
+                      <h3 class="card-title">
+                        <span>Attendance Summary</span>
+                        <span class="badge badge-success" id="dashAttSummaryBadge">0%</span>
+                      </h3>
+                      <p class="card-subtitle" id="dashAttSessionsMeta">0 recorded sessions</p>
+                    </div>
+                    <button type="button" class="btn-text" data-nav="attendance">Attendance &rarr;</button>
+                  </div>
+                  <div class="dash-att-grid">
+                    <div class="dash-att-tile dash-att-tile-rate">
+                      <span class="dash-att-tile-label">Attendance Rate</span>
+                      <strong class="dash-att-tile-value" id="dashAttPctValue">0%</strong>
+                    </div>
+                    <div class="dash-att-tile dash-att-tile-present">
+                      <span class="dash-att-tile-label">Present</span>
+                      <strong class="dash-att-tile-value" id="dashAttPresentCount">0</strong>
+                    </div>
+                    <div class="dash-att-tile dash-att-tile-late">
+                      <span class="dash-att-tile-label">Late</span>
+                      <strong class="dash-att-tile-value" id="dashAttLateCount">0</strong>
+                    </div>
+                    <div class="dash-att-tile dash-att-tile-absent">
+                      <span class="dash-att-tile-label">Absent</span>
+                      <strong class="dash-att-tile-value" id="dashAttAbsentCount">0</strong>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Recent Published Announcements Widget -->
+                <div class="card dash-card">
+                  <div class="card-header">
+                    <div class="dash-card-title-group">
+                      <h3 class="card-title">Recent Announcements</h3>
+                      <p class="card-subtitle">Published campus and class advisories</p>
+                    </div>
+                    <button type="button" class="btn-text" data-nav="announcements">View All &rarr;</button>
+                  </div>
+                  <div id="dashAnnouncementsPreviewContainer"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+

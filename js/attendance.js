@@ -3,11 +3,13 @@
  * BANTUG UNIVERSITY - Student Portal System
  * Module 5: Attendance Tracker (attendance.js) — STRICTLY READ-ONLY FOR STUDENTS
  *
- * Student Permissions Enforced:
- * - View attendance records
- * - View attendance by subject
- * - View attendance history
- * - View total present days, absent days, late records, and attendance percentage
+ * Hydrates `pages/student/attendance.html` in place while enforcing read-only
+ * student access:
+ * - Overview header with Academic Year, Semester, Overall % & Record Count
+ * - Summary cards (Attendance Rate, Present, Late, Absent)
+ * - Dedicated Attendance Performance progress section
+ * - Subject-level attendance breakdown table
+ * - Search, Subject, Status, and Date filters with read-only History Log
  * - NO self-marking, NO editing, NO deleting attendance records (Faculty-only)
  * ============================================================================
  */
@@ -17,289 +19,194 @@ const StudentHubAttendance = (function () {
 
   let filterSubject = "All";
   let filterStatus = "All";
+  let filterDate = "";
   let searchQuery = "";
+
+  function parseAcademicTerm(termStr) {
+    const raw = String(termStr || "").trim();
+    if (!raw) return { semester: "—", academicYear: "—" };
+    const ayMatch = raw.match(/(AY\s*\d{4}\s*[–-]\s*\d{4}|\d{4}\s*[–-]\s*\d{4})/i);
+    const academicYear = ayMatch ? ayMatch[1].replace(/\s+/g, " ").trim() : "—";
+    let semester = raw;
+    if (ayMatch) {
+      semester = raw
+        .replace(ayMatch[0], "")
+        .replace(/^[,\s•–-]+|[,\s•–-]+$/g, "")
+        .trim();
+    }
+    return {
+      semester: semester || raw,
+      academicYear
+    };
+  }
 
   function getStatusBadge(status) {
     if (status === "Present") return "badge-success";
     if (status === "Late") return "badge-warning";
     if (status === "Absent") return "badge-danger";
+    if (status === "Excused") return "badge-info";
     return "badge-neutral";
   }
 
-  function render() {
-    const container = document.getElementById("attendanceContainer");
-    if (!container) return;
+  function resolveSubjectMetaForRecord(rec, subjects) {
+    const list = Array.isArray(subjects) ? subjects : [];
+    const recCode = String((rec && rec.subjectCode) || "").trim().toLowerCase();
+    const recSub = String((rec && rec.subject) || "").trim().toLowerCase();
 
+    const matched = list.find((s) => {
+      const sCode = String((s && s.subjectCode) || "").trim().toLowerCase();
+      const sCourse = String((s && s.courseCode) || "").trim().toLowerCase();
+      const sName = String((s && s.subjectName) || "").trim().toLowerCase();
+      if (recCode && sCode === recCode) return true;
+      if (recSub && sCode && recSub.startsWith(sCode)) return true;
+      if (recSub && sCourse && recSub.includes(sCourse)) return true;
+      if (recSub && sName && recSub.includes(sName)) return true;
+      return false;
+    });
+
+    if (matched) {
+      return {
+        subjectCode: matched.subjectCode || rec.subjectCode || "—",
+        subjectName:
+          matched.fullSubjectName ||
+          (matched.courseCode && matched.subjectName
+            ? `${matched.courseCode} – ${matched.subjectName}`
+            : matched.subjectName) ||
+          rec.subject ||
+          "—",
+        instructor: matched.instructor || "Not specified",
+        scheduleSummary: matched.scheduleSummary || "Not specified"
+      };
+    }
+
+    // Fallback parsing from `rec.subject` (e.g. "T148 - IT 211 - Data Structures")
+    const parts = String((rec && rec.subject) || "")
+      .split(" - ")
+      .map((p) => p.trim())
+      .filter(Boolean);
+    return {
+      subjectCode: (rec && rec.subjectCode) || parts[0] || "—",
+      subjectName:
+        parts.length > 1 ? parts.slice(1).join(" – ") : (rec && rec.subject) || "—",
+      instructor: (rec && rec.instructor) || "Not specified",
+      scheduleSummary: (rec && rec.scheduleSummary) || "Not specified"
+    };
+  }
+
+  function updateClearFiltersVisibility() {
+    const clearBtn = document.getElementById("attClearFiltersBtn");
+    if (!clearBtn) return;
+    const hasActive =
+      filterSubject !== "All" ||
+      filterStatus !== "All" ||
+      Boolean(filterDate) ||
+      searchQuery.trim() !== "";
+    clearBtn.hidden = !hasActive;
+  }
+
+  function renderHistoryOnly() {
     const state = StudentHubStorage.getState();
     const records = state.attendance || [];
-    const stats = StudentHubStorage.computeAttendanceStats();
-    const bySubject = StudentHubStorage.computeAttendanceBySubject();
+    const subjects =
+      typeof StudentHubStorage.getStudentEnrolledSubjects === "function"
+        ? StudentHubStorage.getStudentEnrolledSubjects(state.profile, state.schedules)
+        : state.schedules || [];
 
-    // Unique subjects in attendance + enrolled subjects
-    const allSubjects = Array.from(
-      new Set([...StudentHubStorage.getSubjectList(), ...records.map((r) => r.subject)])
-    );
+    updateClearFiltersVisibility();
 
-    const filtered = records
-      .filter((r) => {
+    const enriched = records.map((r) => ({
+      rec: r,
+      meta: resolveSubjectMetaForRecord(r, subjects)
+    }));
+
+    const filtered = enriched
+      .filter(({ rec: r, meta }) => {
         const matchSub = filterSubject === "All" || r.subject === filterSubject;
         const matchStatus = filterStatus === "All" || r.status === filterStatus;
+        const matchDate = !filterDate || r.date === filterDate;
         const q = searchQuery.trim().toLowerCase();
         const matchQuery =
           !q ||
-          r.subject.toLowerCase().includes(q) ||
+          (r.subject && r.subject.toLowerCase().includes(q)) ||
+          meta.subjectCode.toLowerCase().includes(q) ||
+          meta.subjectName.toLowerCase().includes(q) ||
+          meta.instructor.toLowerCase().includes(q) ||
           (r.remarks && r.remarks.toLowerCase().includes(q)) ||
-          r.status.toLowerCase().includes(q) ||
-          r.date.includes(q);
-        return matchSub && matchStatus && matchQuery;
+          (r.status && r.status.toLowerCase().includes(q)) ||
+          (r.date && r.date.toLowerCase().includes(q));
+        return matchSub && matchStatus && matchDate && matchQuery;
       })
-      .sort((a, b) => (b.date || "").localeCompare(a.date || ""));
+      .sort((a, b) => (b.rec.date || "").localeCompare(a.rec.date || ""));
 
-    container.innerHTML = `
-      <div class="section-header">
-        <div class="section-header-info">
-          <h2>BANTUG UNIVERSITY &mdash; My Attendance Records (${escapeHtml(
-            state.profile.section || "BSIT 2-2"
-          )})</h2>
-          <p>Read-only class attendance summary and session history for ${escapeHtml(
-            state.profile.fullName
-          )} (${escapeHtml(state.profile.studentNumber)}).</p>
-        </div>
-        <div class="section-header-actions">
-          <span class="badge badge-info" style="padding:8px 14px;font-size:0.82rem;">
-            Read-Only Record &bull; Recorded by Faculty
-          </span>
-        </div>
-      </div>
+    const countBadgeEl = document.getElementById("attendanceHistoryCountBadge");
+    const historyBodyEl = document.getElementById("attendanceHistoryBodyContainer");
 
-      <div class="notice-banner">
-        <div>
-          <strong>Official Attendance Recording Policy:</strong> Students have <strong>read-only</strong> access to their attendance records. Attendance is recorded and updated exclusively by <strong>BANTUG UNIVERSITY Faculty</strong> during class roll call.
-        </div>
-      </div>
+    if (countBadgeEl) {
+      countBadgeEl.textContent = `Showing ${filtered.length} of ${records.length} records`;
+    }
+    if (!historyBodyEl) return;
 
-      <!-- Summary Stat Cards -->
-      <div class="stats-grid">
-        <div class="stat-card">
-          <div class="stat-info">
-            <span class="stat-label">Attendance Percentage</span>
-            <span class="stat-value">${stats.percentage}%</span>
-            <span class="stat-sub">Across ${stats.total} faculty-recorded sessions</span>
+    historyBodyEl.innerHTML =
+      filtered.length === 0
+        ? `
+          <div class="empty-state attendance-empty-state">
+            <h3>No Attendance Records Found</h3>
+            <p>No faculty-recorded attendance logs match your current search or filter criteria.</p>
           </div>
-          <div class="stat-icon icon-blue">
-            <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none">
-              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
-              <polyline points="22 4 12 14.01 9 11.01"></polyline>
-            </svg>
-          </div>
-        </div>
-
-        <div class="stat-card">
-          <div class="stat-info">
-            <span class="stat-label">Total Present Days</span>
-            <span class="stat-value">${stats.present}</span>
-            <span class="stat-sub">On-time class attendance</span>
-          </div>
-          <div class="stat-icon icon-green">
-            <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none">
-              <polyline points="20 6 9 17 4 12"></polyline>
-            </svg>
-          </div>
-        </div>
-
-        <div class="stat-card">
-          <div class="stat-info">
-            <span class="stat-label">Late Records</span>
-            <span class="stat-value">${stats.late}</span>
-            <span class="stat-sub">Tardy arrivals recorded</span>
-          </div>
-          <div class="stat-icon icon-amber">
-            <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none">
-              <circle cx="12" cy="12" r="10"></circle>
-              <polyline points="12 6 12 12 16 14"></polyline>
-            </svg>
-          </div>
-        </div>
-
-        <div class="stat-card">
-          <div class="stat-info">
-            <span class="stat-label">Total Absent Days</span>
-            <span class="stat-value">${stats.absent}</span>
-            <span class="stat-sub">Missed class sessions</span>
-          </div>
-          <div class="stat-icon icon-purple">
-            <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none">
-              <circle cx="12" cy="12" r="10"></circle>
-              <line x1="15" y1="9" x2="9" y2="15"></line>
-              <line x1="9" y1="9" x2="15" y2="15"></line>
-            </svg>
-          </div>
-        </div>
-      </div>
-
-      <!-- Attendance Breakdown by BSIT 2-2 Subject -->
-      <div class="card" style="margin-bottom:22px;">
-        <div class="card-header">
-          <h3 class="card-title">Attendance Summary by Subject (BSIT 2-2)</h3>
-          <span class="badge badge-primary">${bySubject.length} Enrolled Subjects</span>
-        </div>
-
-        <div class="table-responsive">
-          <table class="data-table">
-            <thead>
-              <tr>
-                <th>Subject Code</th>
-                <th>Course Code</th>
-                <th>Subject Name &amp; Instructor</th>
-                <th>Present</th>
-                <th>Late</th>
-                <th>Absent</th>
-                <th>Total Sessions</th>
-                <th>Subject Attendance %</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${bySubject
-                .map((sub) => {
-                  const badgeClass =
-                    sub.percentage === null
-                      ? "badge-neutral"
-                      : sub.percentage >= 90
-                      ? "badge-success"
-                      : sub.percentage >= 75
-                      ? "badge-info"
-                      : "badge-danger";
-                  return `
-                    <tr>
-                      <td><strong>${escapeHtml(sub.subjectCode)}</strong></td>
-                      <td><span class="badge badge-info">${escapeHtml(sub.courseCode)}</span></td>
-                      <td>
-                        <div><strong>${escapeHtml(sub.subjectName)}</strong></div>
-                        <div style="font-size:0.76rem;color:var(--text-muted);">Instructor: ${escapeHtml(
-                          sub.instructor
-                        )}</div>
-                      </td>
-                      <td><strong>${sub.present}</strong></td>
-                      <td>${sub.late}</td>
-                      <td>${sub.absent}</td>
-                      <td>${sub.total}</td>
-                      <td>
-                        <span class="badge ${badgeClass}">
-                          ${sub.percentage !== null ? `${sub.percentage}%` : "No sessions logged"}
-                        </span>
-                      </td>
-                    </tr>
-                  `;
-                })
-                .join("")}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      <!-- Search & Filter Toolbar for Attendance History -->
-      <div class="toolbar-row">
-        <div class="toolbar-group">
-          <input
-            type="search"
-            id="attSearchInput"
-            class="form-control"
-            style="max-width:280px;"
-            placeholder="Search subject, date, or faculty remarks..."
-            value="${escapeHtml(searchQuery)}"
-          />
-
-          <select id="attFilterSubject" class="form-control" style="max-width:290px;" aria-label="Filter by Subject">
-            <option value="All">All Subjects (${records.length} Sessions)</option>
-            ${allSubjects
-              .map(
-                (s) =>
-                  `<option value="${escapeHtml(s)}" ${
-                    filterSubject === s ? "selected" : ""
-                  }>${escapeHtml(s)}</option>`
-              )
-              .join("")}
-          </select>
-
-          <select id="attFilterStatus" class="form-control" style="max-width:170px;" aria-label="Filter by Status">
-            <option value="All" ${filterStatus === "All" ? "selected" : ""}>All Statuses</option>
-            <option value="Present" ${filterStatus === "Present" ? "selected" : ""}>Present (${
-      stats.present
-    })</option>
-            <option value="Late" ${filterStatus === "Late" ? "selected" : ""}>Late (${
-      stats.late
-    })</option>
-            <option value="Absent" ${filterStatus === "Absent" ? "selected" : ""}>Absent (${
-      stats.absent
-    })</option>
-          </select>
-        </div>
-      </div>
-
-      <!-- Attendance History Table (Strictly Read-Only) -->
-      <div class="card">
-        <div class="card-header">
-          <h3 class="card-title">Attendance History Log</h3>
-          <span class="badge badge-neutral">Showing ${filtered.length} of ${
-      records.length
-    } records</span>
-        </div>
-
-        ${
-          filtered.length === 0
-            ? `
-            <div class="empty-state">
-              <h3>No Attendance Records Found</h3>
-              <p>No faculty-recorded attendance logs match your current search or filter criteria.</p>
-            </div>
-          `
-            : `
-            <div class="table-responsive">
-              <table class="data-table">
-                <thead>
+        `
+        : `
+          <div class="table-responsive">
+            <table class="data-table attendance-history-table">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Subject Code</th>
+                  <th>Subject Name</th>
+                  <th>Instructor</th>
+                  <th>Class Schedule</th>
+                  <th>Attendance Status</th>
+                  <th>Remarks</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${filtered
+                  .map(
+                    ({ rec: r, meta }) => `
                   <tr>
-                    <th>Date</th>
-                    <th>Subject</th>
-                    <th>Attendance Status</th>
-                    <th>Faculty Remarks / Session Notes</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  ${filtered
-                    .map(
-                      (r) => `
-                    <tr>
-                      <td><strong>${escapeHtml(formatReadableDate(r.date))}</strong></td>
-                      <td><strong>${escapeHtml(r.subject)}</strong></td>
-                      <td>
-                        <span class="badge ${getStatusBadge(r.status)}">${escapeHtml(
+                    <td class="att-col-date"><strong>${escapeHtml(
+                      formatReadableDate(r.date)
+                    )}</strong></td>
+                    <td><span class="badge badge-info">${escapeHtml(
+                      meta.subjectCode
+                    )}</span></td>
+                    <td><strong>${escapeHtml(meta.subjectName)}</strong></td>
+                    <td>${escapeHtml(meta.instructor)}</td>
+                    <td class="att-col-schedule">${escapeHtml(meta.scheduleSummary)}</td>
+                    <td>
+                      <span class="badge ${getStatusBadge(r.status)}">${escapeHtml(
                         r.status
                       )}</span>
-                      </td>
-                      <td>${escapeHtml(r.remarks || "Recorded by Faculty")}</td>
-                    </tr>
-                  `
-                    )
-                    .join("")}
-                </tbody>
-              </table>
-            </div>
-          `
-        }
-      </div>
-    `;
+                    </td>
+                    <td>${escapeHtml(r.remarks || "Recorded by Faculty")}</td>
+                  </tr>
+                `
+                  )
+                  .join("")}
+              </tbody>
+            </table>
+          </div>
+        `;
+  }
 
-    // Bind Filters & Search
+  function bindAttendanceEventsOnce(container) {
+    if (!container || container.dataset.attendanceEventsBound === "1") return;
+    container.dataset.attendanceEventsBound = "1";
+
     const searchInput = document.getElementById("attSearchInput");
     if (searchInput) {
       searchInput.addEventListener("input", (e) => {
         searchQuery = e.target.value;
-        render();
-        const el = document.getElementById("attSearchInput");
-        if (el) {
-          el.focus();
-          el.setSelectionRange(searchQuery.length, searchQuery.length);
-        }
+        renderHistoryOnly();
       });
     }
 
@@ -307,7 +214,7 @@ const StudentHubAttendance = (function () {
     if (subSelect) {
       subSelect.addEventListener("change", (e) => {
         filterSubject = e.target.value;
-        render();
+        renderHistoryOnly();
       });
     }
 
@@ -315,12 +222,251 @@ const StudentHubAttendance = (function () {
     if (statusSelect) {
       statusSelect.addEventListener("change", (e) => {
         filterStatus = e.target.value;
-        render();
+        renderHistoryOnly();
+      });
+    }
+
+    const dateInput = document.getElementById("attFilterDate");
+    if (dateInput) {
+      dateInput.addEventListener("change", (e) => {
+        filterDate = e.target.value;
+        renderHistoryOnly();
+      });
+    }
+
+    const clearBtn = document.getElementById("attClearFiltersBtn");
+    if (clearBtn) {
+      clearBtn.addEventListener("click", () => {
+        filterSubject = "All";
+        filterStatus = "All";
+        filterDate = "";
+        searchQuery = "";
+        if (searchInput) searchInput.value = "";
+        if (subSelect) subSelect.value = "All";
+        if (statusSelect) statusSelect.value = "All";
+        if (dateInput) dateInput.value = "";
+        renderHistoryOnly();
       });
     }
   }
 
-  return { render };
+  function render() {
+    const container = document.getElementById("attendanceContainer");
+    if (!container) return;
+
+    bindAttendanceEventsOnce(container);
+
+    const state = StudentHubStorage.getState();
+    const profile = state.profile || {};
+    const records = state.attendance || [];
+    const stats = StudentHubStorage.computeAttendanceStats();
+    const bySubject = StudentHubStorage.computeAttendanceBySubject();
+    const sectionLabel = profile.section || "BSIT 2-2";
+    const parsedTerm = parseAcademicTerm(profile.academicTerm || "2nd Semester, AY 2026–2027");
+
+    // Unique subjects in attendance + enrolled subjects
+    const allSubjects = Array.from(
+      new Set([...StudentHubStorage.getSubjectList(), ...records.map((r) => r.subject)])
+    );
+
+    // 1. Hydrate Overview Header & Pills
+    const titleEl = document.getElementById("attendanceSectionTitle");
+    const subtitleEl = document.getElementById("attendanceSectionSubtitle");
+    const secPillEl = document.getElementById("attSectionPill");
+    const ayPillEl = document.getElementById("attAcademicYearPill");
+    const semPillEl = document.getElementById("attSemesterPill");
+    const ovPctPillEl = document.getElementById("attOverviewPctPill");
+    const ovTotalPillEl = document.getElementById("attOverviewTotalPill");
+
+    if (titleEl) {
+      titleEl.innerHTML = `Attendance &mdash; ${escapeHtml(sectionLabel)}`;
+    }
+    if (subtitleEl) {
+      subtitleEl.textContent = `Read-only class attendance summary and session history for ${
+        profile.fullName || ""
+      } (${profile.studentNumber || ""}).`;
+    }
+    if (secPillEl) secPillEl.textContent = `Section: ${sectionLabel}`;
+    if (ayPillEl) ayPillEl.textContent = `Academic Year: ${parsedTerm.academicYear}`;
+    if (semPillEl) semPillEl.textContent = `Semester: ${parsedTerm.semester}`;
+    if (ovPctPillEl) {
+      ovPctPillEl.className = `badge ${
+        stats.total === 0
+          ? "badge-neutral"
+          : stats.percentage >= 90
+            ? "badge-success"
+            : stats.percentage >= 75
+              ? "badge-warning"
+              : "badge-danger"
+      }`;
+      ovPctPillEl.textContent = `Attendance: ${stats.percentage}%`;
+    }
+    if (ovTotalPillEl) {
+      ovTotalPillEl.textContent = `${stats.total} ${stats.total === 1 ? "Record" : "Records"}`;
+    }
+
+    // 2. Hydrate Summary Stat Cards
+    const pctEl = document.getElementById("attStatPercentage");
+    const totalSubEl = document.getElementById("attStatTotalSub");
+    const presentEl = document.getElementById("attStatPresent");
+    const lateEl = document.getElementById("attStatLate");
+    const absentEl = document.getElementById("attStatAbsent");
+
+    if (pctEl) pctEl.textContent = `${stats.percentage}%`;
+    if (totalSubEl) {
+      totalSubEl.textContent = `Across ${stats.total} faculty-recorded sessions`;
+    }
+    if (presentEl) presentEl.textContent = String(stats.present);
+    if (lateEl) lateEl.textContent = String(stats.late);
+    if (absentEl) absentEl.textContent = String(stats.absent);
+
+    // 3. Hydrate Dedicated Attendance Performance Section
+    const perfPctEl = document.getElementById("attPerfPctValue");
+    const perfBadgeEl = document.getElementById("attPerfStandingBadge");
+    const perfTextEl = document.getElementById("attPerfProgressText");
+    const perfBarEl = document.getElementById("attPerfProgressBar");
+    const perfTotalEl = document.getElementById("attPerfTotalCount");
+    const perfPresentEl = document.getElementById("attPerfPresentCount");
+    const perfLateEl = document.getElementById("attPerfLateCount");
+    const perfAbsentEl = document.getElementById("attPerfAbsentCount");
+
+    if (perfPctEl) perfPctEl.textContent = `${stats.percentage}%`;
+    if (perfTotalEl) perfTotalEl.textContent = String(stats.total);
+    if (perfPresentEl) perfPresentEl.textContent = String(stats.present);
+    if (perfLateEl) perfLateEl.textContent = String(stats.late);
+    if (perfAbsentEl) perfAbsentEl.textContent = String(stats.absent);
+
+    const attendedSessions =
+      typeof stats.attendedCount === "number"
+        ? stats.attendedCount
+        : (stats.present || 0) + (stats.late || 0);
+    if (perfTextEl) {
+      perfTextEl.textContent = `${attendedSessions} of ${stats.total} sessions attended`;
+    }
+    if (perfBadgeEl) {
+      const standing =
+        stats.total === 0
+          ? { cls: "badge-neutral", label: "No Sessions Logged" }
+          : stats.percentage >= 90
+            ? { cls: "badge-success", label: "Excellent Standing" }
+            : stats.percentage >= 75
+              ? { cls: "badge-warning", label: "Satisfactory" }
+              : { cls: "badge-danger", label: "Attendance Warning" };
+      perfBadgeEl.className = `badge ${standing.cls}`;
+      perfBadgeEl.textContent = standing.label;
+    }
+    if (perfBarEl) {
+      const barWidth = stats.total > 0 ? Math.min(100, Math.max(0, stats.percentage)) : 0;
+      const fillCls =
+        stats.total === 0
+          ? ""
+          : stats.percentage >= 90
+            ? "fill-success"
+            : stats.percentage >= 75
+              ? "fill-warning"
+              : "fill-danger";
+      perfBarEl.className = `progress-fill ${fillCls}`.trim();
+      perfBarEl.style.width = `${barWidth}%`;
+    }
+
+    // 4. Hydrate Subject Attendance Summary Card
+    const subCardTitleEl = document.getElementById("attendanceSubjectCardTitle");
+    const subCountBadgeEl = document.getElementById("attendanceSubjectCountBadge");
+    const subTableBodyEl = document.getElementById("attendanceSubjectTableBody");
+
+    if (subCardTitleEl) {
+      subCardTitleEl.textContent = `Attendance Summary by Subject (${sectionLabel})`;
+    }
+    if (subCountBadgeEl) {
+      subCountBadgeEl.textContent = `${bySubject.length} Enrolled Subjects`;
+    }
+    if (subTableBodyEl) {
+      subTableBodyEl.innerHTML = bySubject
+        .map((sub) => {
+          const badgeClass =
+            sub.percentage === null
+              ? "badge-neutral"
+              : sub.percentage >= 90
+                ? "badge-success"
+                : sub.percentage >= 75
+                  ? "badge-info"
+                  : "badge-danger";
+          return `
+            <tr>
+              <td><strong>${escapeHtml(sub.subjectCode)}</strong></td>
+              <td><span class="badge badge-info">${escapeHtml(sub.courseCode)}</span></td>
+              <td>
+                <div><strong>${escapeHtml(sub.subjectName)}</strong></div>
+                <div class="attendance-instructor-sub">Instructor: ${escapeHtml(
+                  sub.instructor
+                )}</div>
+              </td>
+              <td><strong class="text-present">${sub.present}</strong></td>
+              <td><strong class="text-late">${sub.late}</strong></td>
+              <td><strong class="text-absent">${sub.absent}</strong></td>
+              <td>${sub.total}</td>
+              <td>
+                <span class="badge ${badgeClass}">
+                  ${sub.percentage !== null ? `${sub.percentage}%` : "No sessions logged"}
+                </span>
+              </td>
+            </tr>
+          `;
+        })
+        .join("");
+    }
+
+    // 5. Hydrate Search & Filter Toolbar
+    const searchInput = document.getElementById("attSearchInput");
+    if (searchInput && searchInput.value !== searchQuery) {
+      searchInput.value = searchQuery;
+    }
+
+    const subSelect = document.getElementById("attFilterSubject");
+    if (subSelect) {
+      if (filterSubject !== "All" && !allSubjects.includes(filterSubject)) {
+        filterSubject = "All";
+      }
+      subSelect.innerHTML = `
+        <option value="All" ${filterSubject === "All" ? "selected" : ""}>All Subjects (${records.length} Sessions)</option>
+        ${allSubjects
+          .map(
+            (s) =>
+              `<option value="${escapeHtml(s)}" ${
+                filterSubject === s ? "selected" : ""
+              }>${escapeHtml(s)}</option>`
+          )
+          .join("")}
+      `;
+      subSelect.value = filterSubject;
+    }
+
+    const statusSelect = document.getElementById("attFilterStatus");
+    if (statusSelect) {
+      statusSelect.innerHTML = `
+        <option value="All" ${filterStatus === "All" ? "selected" : ""}>All Statuses</option>
+        <option value="Present" ${filterStatus === "Present" ? "selected" : ""}>Present (${stats.present})</option>
+        <option value="Late" ${filterStatus === "Late" ? "selected" : ""}>Late (${stats.late})</option>
+        <option value="Absent" ${filterStatus === "Absent" ? "selected" : ""}>Absent (${stats.absent})</option>
+      `;
+      statusSelect.value = filterStatus;
+    }
+
+    const dateInput = document.getElementById("attFilterDate");
+    if (dateInput && dateInput.value !== filterDate) {
+      dateInput.value = filterDate;
+    }
+
+    // 6. Hydrate Attendance History Table
+    renderHistoryOnly();
+  }
+
+  return {
+    render,
+    parseAcademicTerm,
+    resolveSubjectMetaForRecord,
+    getStatusBadge
+  };
 })();
 
 window.StudentHubAttendance = StudentHubAttendance;

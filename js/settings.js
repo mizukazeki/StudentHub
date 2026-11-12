@@ -2,8 +2,9 @@
  * ============================================================================
  * BANTUG UNIVERSITY - Student Portal System
  * Module 9: Portal Settings & Data Management (settings.js)
- * Manages Light/Dark mode, notification preferences, BANTUG UNIVERSITY logo
- * configuration, role switching, JSON backup export, and sample data reset.
+ * Manages Light/Dark mode, notification preferences, academic & account
+ * preferences, session info, BANTUG UNIVERSITY logo configuration, role
+ * switching, JSON backup export, and sample data reset.
  * ============================================================================
  */
 
@@ -27,12 +28,36 @@ const StudentHubSettings = (function () {
     const { settings, profile } = state;
     const session = StudentHubStorage.getSession();
     const activeRole = session ? session.role : "student";
+    const accountIdentifier =
+      activeRole === "student"
+        ? profile.studentNumber || "2025-BSIT-0202"
+        : (session && (session.username || session.email)) || activeRole.toUpperCase();
+    const displayTerm =
+      profile.academicTerm || profile.academicYearTerm || "2nd Semester, AY 2026\u20132027";
+    const accountEmail =
+      activeRole === "student"
+        ? profile.email || "Not set"
+        : (session && session.email) || profile.email || "University Portal Account";
 
     container.innerHTML = `
-      <div class="section-header">
+      <!-- 1. Settings Overview Header -->
+      <div class="section-header settings-overview-header">
         <div class="section-header-info">
-          <h2>BANTUG UNIVERSITY &mdash; Portal Settings &amp; Data Management</h2>
-          <p>Customize appearance, university logo, notification preferences, active demo role, and localStorage data.</p>
+          <h2 id="settingsSectionTitle">Settings</h2>
+          <p id="settingsSectionSubtitle">
+            Manage your appearance preferences, notification alerts, account display settings, session access, and portal data.
+          </p>
+          <div class="settings-overview-pills">
+            <span class="badge badge-primary" id="settingsRolePill">Role: ${escapeHtml(
+              activeRole.toUpperCase()
+            )}</span>
+            <span class="badge badge-info" id="settingsAccountPill">Account: ${escapeHtml(
+              accountIdentifier
+            )}</span>
+            <span class="badge badge-neutral" id="settingsTermPill">${escapeHtml(
+              displayTerm
+            )}</span>
+          </div>
         </div>
         <div class="section-header-actions">
           <button type="button" class="btn btn-secondary" id="settingsSwitchRoleBtn">
@@ -45,16 +70,22 @@ const StudentHubSettings = (function () {
       </div>
 
       <div class="settings-grid">
-        <!-- Card 1: Appearance & Notification Preferences -->
-        <div class="card">
+        <!-- 2. Appearance Settings -->
+        <div class="card settings-card">
           <div class="card-header">
-            <h3 class="card-title">Appearance &amp; Notification Preferences</h3>
+            <h3 class="card-title">Appearance Settings</h3>
+            <span class="badge badge-info">${
+              settings.theme === "dark" ? "Dark Mode" : "Light Mode"
+            }</span>
           </div>
+          <p class="settings-card-desc">
+            Customize the portal visual theme and navigation sidebar layout across all modules.
+          </p>
 
           <div class="setting-item">
             <div class="setting-info">
               <h4>Dark Mode Theme</h4>
-              <p>Switch between BANTUG UNIVERSITY light mode and high-contrast dark mode.</p>
+              <p>Switch between BANTUG UNIVERSITY light mode and high-contrast dark mode (synced with header theme toggle).</p>
             </div>
             <label class="switch" aria-label="Toggle Dark Mode">
               <input type="checkbox" id="setDarkModeToggle" ${
@@ -76,11 +107,22 @@ const StudentHubSettings = (function () {
               <span class="slider"></span>
             </label>
           </div>
+        </div>
+
+        <!-- 3. Notification Settings -->
+        <div class="card settings-card">
+          <div class="card-header">
+            <h3 class="card-title">Notification Settings</h3>
+            <span class="badge badge-primary">Real-Time Sync</span>
+          </div>
+          <p class="settings-card-desc">
+            Control how assignment deadlines, unread announcements, and navigation counters appear in your portal.
+          </p>
 
           <div class="setting-item">
             <div class="setting-info">
               <h4>Overdue Task &amp; Deadline Alerts</h4>
-              <p>Display overdue task alerts inside the topbar notification center.</p>
+              <p>Display overdue assignment reminders inside the topbar notification center.</p>
             </div>
             <label class="switch" aria-label="Toggle Deadline Reminders">
               <input type="checkbox" id="setDeadlineRemindersToggle" ${
@@ -104,20 +146,119 @@ const StudentHubSettings = (function () {
           </div>
         </div>
 
-        <!-- Card 2: BANTUG UNIVERSITY Logo & Branding Configuration -->
-        <div class="card">
+        <!-- 4. Account & Academic Preferences -->
+        <div class="card settings-card settings-card-full">
+          <div class="card-header">
+            <h3 class="card-title">Account Preferences</h3>
+            ${
+              activeRole === "student"
+                ? `<button type="button" class="btn-text" id="goFullProfileBtn">Full Student Profile &rarr;</button>`
+                : activeRole === "faculty"
+                ? `<button type="button" class="btn-text" id="goFullProfileBtn">Full Faculty Profile &rarr;</button>`
+                : ""
+            }
+          </div>
+          <p class="settings-card-desc">
+            Review your connected portal account details and update your display name or current academic term.
+          </p>
+
+          <div class="settings-account-summary">
+            <div>
+              <span class="settings-summary-label">Account ID</span>
+              <span class="settings-summary-value">${escapeHtml(accountIdentifier)}</span>
+            </div>
+            <div>
+              <span class="settings-summary-label">Email Address</span>
+              <span class="settings-summary-value">${escapeHtml(accountEmail)}</span>
+            </div>
+            <div>
+              <span class="settings-summary-label">Section / Affiliation</span>
+              <span class="settings-summary-value">${escapeHtml(
+                profile.section || "BANTUG UNIVERSITY"
+              )}</span>
+            </div>
+          </div>
+
+          <form id="quickPrefsForm" novalidate>
+            <div class="form-grid">
+              <div class="form-group">
+                <label class="form-label" for="prefDisplayName">Display Name <span class="req">*</span></label>
+                <input
+                  type="text"
+                  id="prefDisplayName"
+                  name="fullName"
+                  class="form-control"
+                  value="${escapeHtml(profile.fullName)}"
+                />
+                <div class="field-error" data-error-for="fullName"></div>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label" for="prefTerm">Current Academic Term <span class="req">*</span></label>
+                <input
+                  type="text"
+                  id="prefTerm"
+                  name="academicTerm"
+                  class="form-control"
+                  value="${escapeHtml(displayTerm)}"
+                />
+                <div class="field-error" data-error-for="academicTerm"></div>
+              </div>
+            </div>
+
+            <div class="modal-actions">
+              <button type="button" class="btn btn-secondary" id="cancelQuickPrefsBtn">
+                Cancel
+              </button>
+              <button type="submit" class="btn btn-primary">
+                Save Academic Preferences
+              </button>
+            </div>
+          </form>
+        </div>
+
+        <!-- 5. Security & Session Information -->
+        <div class="card settings-card">
+          <div class="card-header">
+            <h3 class="card-title">Security &amp; Session Information</h3>
+            <span class="badge badge-success">Active Session</span>
+          </div>
+          <p class="settings-card-desc">
+            Current authentication session status and role-based access summary. Passwords are never displayed in portal settings.
+          </p>
+
+          <div class="settings-session-box">
+            <div>
+              <span class="settings-summary-label">Signed-In Role</span>
+              <span class="settings-summary-value">${escapeHtml(activeRole.toUpperCase())}</span>
+            </div>
+            <div>
+              <span class="settings-summary-label">Session Account</span>
+              <span class="settings-summary-value">${escapeHtml(accountIdentifier)}</span>
+            </div>
+          </div>
+
+          <div class="settings-logo-actions">
+            <button type="button" class="btn btn-sm btn-secondary" id="settingsSecSwitchRoleBtn">
+              Switch Portal Role
+            </button>
+            <button type="button" class="btn btn-sm btn-outline-danger" id="settingsSecLogoutBtn">
+              Sign Out Session
+            </button>
+          </div>
+        </div>
+
+        <!-- 6. BANTUG UNIVERSITY Logo & Branding Configuration -->
+        <div class="card settings-card">
           <div class="card-header">
             <h3 class="card-title">BANTUG UNIVERSITY Logo Configuration</h3>
             <span class="badge badge-primary">Aspect Ratio Preserved</span>
           </div>
-
-          <p style="font-size:0.84rem;color:var(--text-secondary);margin-bottom:14px;">
-            The portal automatically loads your official logo from:<br/>
-            <code>assets/images/bantug-university-logo.png</code><br/>
-            You can either place your image file at that path in the project folder OR select the image file directly below to preview it across the Login screen, Sidebar, and Applicant Portal.
+          <p class="settings-card-desc">
+            Default path: <code>assets/images/bantug-university-logo.png</code>. You may also preview a custom image file locally.
           </p>
 
-          <div style="display:flex;align-items:center;gap:16px;padding:14px;background:var(--bg-surface-alt);border:1px solid var(--border-color);border-radius:var(--radius-sm);margin-bottom:14px;">
+          <div class="settings-logo-preview-box">
             <img
               src="${escapeHtml(StudentHubStorage.getLogoSrc())}"
               alt="BANTUG UNIVERSITY Logo Preview"
@@ -138,93 +279,43 @@ const StudentHubSettings = (function () {
             </div>
           </div>
 
-          <div style="display:flex;gap:10px;flex-wrap:wrap;">
+          <div class="settings-logo-actions">
             <label for="uploadLogoFileInput" class="btn btn-sm btn-primary" style="cursor:pointer;">
               Select Logo Image File
             </label>
             <input type="file" id="uploadLogoFileInput" accept="image/*" hidden />
             <button type="button" class="btn btn-sm btn-secondary" id="resetDefaultLogoPathBtn">
-              Use assets/images/bantug-university-logo.png
+              Use Default Logo Path
             </button>
           </div>
         </div>
 
-        <!-- Card 3: Quick Profile & Academic Term Preferences -->
-        <div class="card" style="grid-column: 1 / -1;">
-          <div class="card-header">
-            <h3 class="card-title">Academic Term &amp; Display Preferences (Current Role: ${escapeHtml(
-              activeRole.toUpperCase()
-            )})</h3>
-            ${
-              activeRole === "student"
-                ? `<button type="button" class="btn-text" id="goFullProfileBtn">Full Student Profile &rarr;</button>`
-                : activeRole === "faculty"
-                ? `<button type="button" class="btn-text" id="goFullProfileBtn">Full Faculty Profile &rarr;</button>`
-                : ""
-            }
-          </div>
-
-          <form id="quickPrefsForm" novalidate>
-            <div class="form-grid">
-              <div class="form-group">
-                <label class="form-label" for="prefDisplayName">Student Display Name <span class="req">*</span></label>
-                <input
-                  type="text"
-                  id="prefDisplayName"
-                  name="fullName"
-                  class="form-control"
-                  value="${escapeHtml(profile.fullName)}"
-                />
-                <div class="field-error" data-error-for="fullName"></div>
-              </div>
-
-              <div class="form-group">
-                <label class="form-label" for="prefTerm">Current Academic Term <span class="req">*</span></label>
-                <input
-                  type="text"
-                  id="prefTerm"
-                  name="academicTerm"
-                  class="form-control"
-                  value="${escapeHtml(profile.academicTerm || "2nd Semester, AY 2026–2027")}"
-                />
-                <div class="field-error" data-error-for="academicTerm"></div>
-              </div>
-            </div>
-
-            <div class="modal-actions">
-              <button type="submit" class="btn btn-primary">
-                Save Academic Preferences
-              </button>
-            </div>
-          </form>
-        </div>
-
-        <!-- Card 4: localStorage Data Management & Reset Controls -->
-        <div class="card" style="grid-column: 1 / -1;">
+        <!-- 7. Browser localStorage Data Management & Reset Controls -->
+        <div class="card settings-card settings-card-full">
           <div class="card-header">
             <h3 class="card-title">Browser localStorage Data Management</h3>
             <span class="badge badge-info">Key: ${escapeHtml(StudentHubStorage.STORAGE_KEY)}</span>
           </div>
 
-          <p style="font-size:0.88rem;color:var(--text-secondary);margin-bottom:18px;">
-            All BANTUG UNIVERSITY portal records (the 9 preloaded <strong>BSIT 2-2</strong> subjects, student &amp; faculty profiles, attendance logs, grades, tasks, announcements, learning resources, and applicant records) are persisted in your browser's <code>localStorage</code>.
+          <p class="settings-card-desc">
+            Portal records (the ${(state.schedules || []).length} <strong>BSIT 2-2</strong> subjects, profiles, attendance logs, grades, tasks, announcements, learning resources, and applicant records) are persisted in your browser's <code>localStorage</code>.
           </p>
 
-          <div style="display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;padding:16px;background:var(--bg-surface-alt);border:1px solid var(--border-color);border-radius:var(--radius-sm);">
+          <div class="settings-data-panel">
             <div>
               <h4 style="font-size:0.95rem;">Demonstration Data Actions</h4>
               <p style="font-size:0.8rem;color:var(--text-muted);">
-                Currently storing ${state.schedules.length} BSIT 2-2 subjects, ${
-      state.attendance.length
-    } attendance logs, ${state.tasks.length} tasks, ${
-      state.announcements.length
-    } announcements, ${state.resources.length} resources, and ${
+                Currently storing ${(state.schedules || []).length} subjects, ${
+      (state.attendance || []).length
+    } attendance logs, ${(state.tasks || []).length} tasks, ${
+      (state.announcements || []).length
+    } announcements, ${(state.resources || []).length} resources, and ${
       (state.applications || []).length
     } applicant records.
               </p>
             </div>
 
-            <div style="display:flex;gap:10px;flex-wrap:wrap;">
+            <div class="settings-data-actions">
               <button type="button" class="btn btn-secondary" id="exportDataJsonBtn">
                 Export JSON Backup
               </button>
@@ -241,15 +332,18 @@ const StudentHubSettings = (function () {
     `;
 
     // Bind Role Switcher & Logout
+    const openRoleSwitcher = () => {
+      if (window.StudentHubAuth) window.StudentHubAuth.openDemoRoleLauncher();
+    };
     const switchRoleBtn = document.getElementById("settingsSwitchRoleBtn");
-    if (switchRoleBtn) {
-      switchRoleBtn.addEventListener("click", () => {
-        if (window.StudentHubAuth) window.StudentHubAuth.openDemoRoleLauncher();
-      });
-    }
+    if (switchRoleBtn) switchRoleBtn.addEventListener("click", openRoleSwitcher);
+    const secSwitchRoleBtn = document.getElementById("settingsSecSwitchRoleBtn");
+    if (secSwitchRoleBtn) secSwitchRoleBtn.addEventListener("click", openRoleSwitcher);
 
     const logoutBtn = document.getElementById("settingsLogoutBtn");
     if (logoutBtn) logoutBtn.addEventListener("click", logoutToLogin);
+    const secLogoutBtn = document.getElementById("settingsSecLogoutBtn");
+    if (secLogoutBtn) secLogoutBtn.addEventListener("click", logoutToLogin);
 
     // Bind Toggle Switches
     const darkToggle = document.getElementById("setDarkModeToggle");
@@ -343,8 +437,26 @@ const StudentHubSettings = (function () {
       });
     }
 
-    // Bind Quick Preferences Form
+    // Bind Quick Preferences Form & Cancel Button
     const prefsForm = document.getElementById("quickPrefsForm");
+    const cancelPrefsBtn = document.getElementById("cancelQuickPrefsBtn");
+    if (cancelPrefsBtn && prefsForm) {
+      cancelPrefsBtn.addEventListener("click", () => {
+        clearFormErrors(prefsForm);
+        const currState = StudentHubStorage.getState();
+        const nameInput = document.getElementById("prefDisplayName");
+        const termInput = document.getElementById("prefTerm");
+        if (nameInput) nameInput.value = currState.profile.fullName || "";
+        if (termInput) {
+          termInput.value =
+            currState.profile.academicTerm ||
+            currState.profile.academicYearTerm ||
+            "2nd Semester, AY 2026\u20132027";
+        }
+        showToast("Reverted unsaved account preference changes.", "info");
+      });
+    }
+
     if (prefsForm) {
       prefsForm.addEventListener("submit", (e) => {
         e.preventDefault();

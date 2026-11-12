@@ -1,0 +1,380 @@
+        <!-- ==================== STUDENT PORTAL: MY PROFILE MODULE ==================== -->
+        <section id="section-profile" class="module-section" hidden>
+          <div id="profileContainer">
+            <!-- 1. Section Header -->
+            <div class="section-header">
+              <div class="section-header-info">
+                <h2>BANTUG UNIVERSITY &mdash; My Student Profile</h2>
+                <p>Review your official student record, academic standing, and personal contact details.</p>
+              </div>
+              <div class="section-header-actions">
+                <button
+                  type="button"
+                  class="btn btn-primary"
+                  id="toggleProfileEditBtn"
+                  aria-expanded="false"
+                  aria-controls="profileEditCard"
+                >
+                  Edit Profile
+                </button>
+              </div>
+            </div>
+
+            <!-- 2. Profile Overview Header Card -->
+            <div class="card profile-overview-card">
+              <div class="profile-overview-top">
+                <div class="profile-overview-identity">
+                  <div class="profile-avatar-column">
+                    <div class="profile-avatar-wrapper">
+                      <img
+                        src="assets/images/default-avatar.svg"
+                        alt="Student Profile Avatar"
+                        class="profile-avatar-lg"
+                        id="profileAvatarPreview"
+                      />
+                    </div>
+                    <div class="avatar-upload-actions">
+                      <label for="avatarFileInput" class="btn btn-sm btn-secondary profile-upload-label">
+                        Upload Photo
+                      </label>
+                      <input type="file" id="avatarFileInput" accept="image/*" hidden />
+                      <button type="button" class="btn btn-sm btn-outline-danger" id="resetAvatarBtn">
+                        Default
+                      </button>
+                    </div>
+                    <span class="form-hint profile-upload-hint">PNG, JPG, SVG (max 1.5MB)</span>
+                  </div>
+
+                  <div class="profile-identity-details">
+                    <div class="profile-identity-eyebrow">Profile Overview &bull; Student Record</div>
+                    <h3 class="profile-card-name" id="profCardFullName">Student Name</h3>
+                    <p class="profile-card-course" id="profCardCourseYear">&mdash;</p>
+                    <div class="profile-overview-badges">
+                      <span class="badge badge-primary profile-card-id-badge" id="profCardStudentNumber">&mdash;</span>
+                      <span class="badge badge-info" id="profOverviewSectionBadge">Section: &mdash;</span>
+                      <span class="badge badge-success" id="profAccountStatusBadge" hidden>Status: Regular</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="profile-overview-meta">
+                  <div class="profile-meta-list">
+                    <div class="profile-meta-row">
+                      <span>Section</span>
+                      <span id="profMetaSection">&mdash;</span>
+                    </div>
+                    <div class="profile-meta-row">
+                      <span>Academic Term</span>
+                      <span id="profMetaAcademicTerm">&mdash;</span>
+                    </div>
+                    <div class="profile-meta-row">
+                      <span>Email</span>
+                      <span class="profile-meta-email" id="profMetaEmail">&mdash;</span>
+                    </div>
+                    <div class="profile-meta-row">
+                      <span>Contact</span>
+                      <span id="profMetaContact">&mdash;</span>
+                    </div>
+                    <div class="profile-meta-row">
+                      <span>Guardian</span>
+                      <span id="profMetaGuardian">N/A</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="notice-banner profile-notice-banner">
+              <div>
+                <strong>Local Record Sync:</strong> Profile updates saved here immediately sync with your Student Portal header and dashboard via browser <code>localStorage</code>.
+              </div>
+            </div>
+
+            <!-- 3. Structured Profile Information Sections -->
+            <div class="profile-sections-grid">
+              <!-- Personal Information Card -->
+              <div class="card profile-info-card">
+                <div class="card-header">
+                  <div>
+                    <h3 class="card-title">Personal Information</h3>
+                    <p class="card-subtitle">Student identity and personal details</p>
+                  </div>
+                  <button type="button" class="btn-text" data-open-profile-edit>Edit &rarr;</button>
+                </div>
+                <div class="profile-dl-grid">
+                  <div class="profile-dl-item">
+                    <span class="profile-dl-label">Full Name</span>
+                    <span class="profile-dl-value" id="profPersonalFullName">&mdash;</span>
+                  </div>
+                  <div class="profile-dl-item">
+                    <span class="profile-dl-label">Date of Birth</span>
+                    <span class="profile-dl-value" id="profPersonalDob">Not recorded</span>
+                  </div>
+                  <div class="profile-dl-item" id="profPersonalGenderRow" hidden>
+                    <span class="profile-dl-label">Gender</span>
+                    <span class="profile-dl-value" id="profPersonalGender">&mdash;</span>
+                  </div>
+                  <div class="profile-dl-item">
+                    <span class="profile-dl-label">Email Address</span>
+                    <span class="profile-dl-value profile-dl-break" id="profPersonalEmail">&mdash;</span>
+                  </div>
+                  <div class="profile-dl-item">
+                    <span class="profile-dl-label">Contact Number</span>
+                    <span class="profile-dl-value" id="profPersonalContact">&mdash;</span>
+                  </div>
+                  <div class="profile-dl-item profile-dl-item-full">
+                    <span class="profile-dl-label">Home Address</span>
+                    <span class="profile-dl-value" id="profPersonalAddress">&mdash;</span>
+                  </div>
+                  <div class="profile-dl-item profile-dl-item-full">
+                    <span class="profile-dl-label">Academic Bio / Goals</span>
+                    <span class="profile-dl-value profile-dl-bio" id="profPersonalBio">No academic bio added.</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Academic Information Card -->
+              <div class="card profile-info-card">
+                <div class="card-header">
+                  <div>
+                    <h3 class="card-title">Academic Information</h3>
+                    <p class="card-subtitle">Official enrollment &amp; term assignment</p>
+                  </div>
+                  <span class="badge badge-primary" id="profAcadStandingTag">Student Record</span>
+                </div>
+                <div class="profile-dl-grid">
+                  <div class="profile-dl-item">
+                    <span class="profile-dl-label">Student ID</span>
+                    <span class="profile-dl-value profile-dl-mono" id="profAcadStudentNumber">&mdash;</span>
+                  </div>
+                  <div class="profile-dl-item">
+                    <span class="profile-dl-label">Year Level</span>
+                    <span class="profile-dl-value" id="profAcadYearLevel">&mdash;</span>
+                  </div>
+                  <div class="profile-dl-item profile-dl-item-full">
+                    <span class="profile-dl-label">Degree Program</span>
+                    <span class="profile-dl-value" id="profAcadProgram">&mdash;</span>
+                  </div>
+                  <div class="profile-dl-item">
+                    <span class="profile-dl-label">Section</span>
+                    <span class="profile-dl-value" id="profAcadSection">&mdash;</span>
+                  </div>
+                  <div class="profile-dl-item">
+                    <span class="profile-dl-label">Academic Year</span>
+                    <span class="profile-dl-value" id="profAcadYear">&mdash;</span>
+                  </div>
+                  <div class="profile-dl-item">
+                    <span class="profile-dl-label">Current Semester</span>
+                    <span class="profile-dl-value" id="profAcadSemester">&mdash;</span>
+                  </div>
+                  <div class="profile-dl-item" id="profAcadStatusRow">
+                    <span class="profile-dl-label">Enrollment Status</span>
+                    <span class="profile-dl-value" id="profAcadStatus">Not specified</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Contact Information Card -->
+              <div class="card profile-info-card profile-info-card-wide">
+                <div class="card-header">
+                  <div>
+                    <h3 class="card-title">Contact Information</h3>
+                    <p class="card-subtitle">Primary student contact and emergency guardian details</p>
+                  </div>
+                  <button type="button" class="btn-text" data-open-profile-edit>Update Contact &rarr;</button>
+                </div>
+                <div class="profile-dl-grid profile-dl-grid-wide">
+                  <div class="profile-dl-item">
+                    <span class="profile-dl-label">Email Address</span>
+                    <span class="profile-dl-value profile-dl-break" id="profContactEmail">&mdash;</span>
+                  </div>
+                  <div class="profile-dl-item">
+                    <span class="profile-dl-label">Contact Number</span>
+                    <span class="profile-dl-value" id="profContactPhone">&mdash;</span>
+                  </div>
+                  <div class="profile-dl-item">
+                    <span class="profile-dl-label">Emergency Contact / Guardian</span>
+                    <span class="profile-dl-value" id="profContactGuardianName">N/A</span>
+                  </div>
+                  <div class="profile-dl-item">
+                    <span class="profile-dl-label">Emergency Contact Number</span>
+                    <span class="profile-dl-value" id="profContactGuardianPhone">Not specified</span>
+                  </div>
+                  <div class="profile-dl-item profile-dl-item-full">
+                    <span class="profile-dl-label">Home / Dormitory Address</span>
+                    <span class="profile-dl-value" id="profContactAddress">&mdash;</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 4. Profile Edit Form Card (Preserved Editing & Validation) -->
+            <div class="card profile-edit-card" id="profileEditCard" hidden>
+              <div class="card-header">
+                <div>
+                  <h3 class="card-title">Edit Personal &amp; Academic Information</h3>
+                  <p class="card-subtitle">Update your student record details. Required fields are marked with *</p>
+                </div>
+                <span class="badge badge-neutral">Required fields marked with *</span>
+              </div>
+
+              <form id="profileForm" novalidate>
+                <div class="profile-form-section-title">Academic &amp; Identity Details</div>
+                <div class="form-grid">
+                  <div class="form-group">
+                    <label class="form-label" for="profStudentNumber">Student Number <span class="req">*</span></label>
+                    <input
+                      type="text"
+                      id="profStudentNumber"
+                      name="studentNumber"
+                      class="form-control"
+                      placeholder="e.g. 2024-DEMO-0108"
+                    />
+                    <div class="field-error" data-error-for="studentNumber"></div>
+                  </div>
+
+                  <div class="form-group">
+                    <label class="form-label" for="profFullName">Full Name <span class="req">*</span></label>
+                    <input
+                      type="text"
+                      id="profFullName"
+                      name="fullName"
+                      class="form-control"
+                      placeholder="Enter your full name"
+                    />
+                    <div class="field-error" data-error-for="fullName"></div>
+                  </div>
+
+                  <div class="form-group">
+                    <label class="form-label" for="profCourse">Course / Degree Program <span class="req">*</span></label>
+                    <input
+                      type="text"
+                      id="profCourse"
+                      name="course"
+                      class="form-control"
+                      placeholder="e.g. BS in Information Technology"
+                    />
+                    <div class="field-error" data-error-for="course"></div>
+                  </div>
+
+                  <div class="form-group">
+                    <label class="form-label" for="profYearLevel">Year Level <span class="req">*</span></label>
+                    <select id="profYearLevel" name="yearLevel" class="form-control">
+                      <option value="Year 1">Year 1</option>
+                      <option value="Year 2">Year 2</option>
+                      <option value="Year 3">Year 3</option>
+                      <option value="Year 4">Year 4</option>
+                    </select>
+                    <div class="field-error" data-error-for="yearLevel"></div>
+                  </div>
+
+                  <div class="form-group">
+                    <label class="form-label" for="profSection">Section <span class="req">*</span></label>
+                    <input
+                      type="text"
+                      id="profSection"
+                      name="section"
+                      class="form-control"
+                      placeholder="e.g. BSIT 2-2"
+                    />
+                    <div class="field-error" data-error-for="section"></div>
+                  </div>
+
+                  <div class="form-group">
+                    <label class="form-label" for="profAcademicTerm">Academic Term <span class="req">*</span></label>
+                    <input
+                      type="text"
+                      id="profAcademicTerm"
+                      name="academicTerm"
+                      class="form-control"
+                      placeholder="e.g. 2nd Semester, AY 2026–2027"
+                    />
+                    <div class="field-error" data-error-for="academicTerm"></div>
+                  </div>
+                </div>
+
+                <div class="profile-form-section-title">Contact &amp; Emergency Details</div>
+                <div class="form-grid">
+                  <div class="form-group">
+                    <label class="form-label" for="profEmail">Email Address <span class="req">*</span></label>
+                    <input
+                      type="email"
+                      id="profEmail"
+                      name="email"
+                      class="form-control"
+                      placeholder="student@university.edu"
+                    />
+                    <div class="field-error" data-error-for="email"></div>
+                  </div>
+
+                  <div class="form-group">
+                    <label class="form-label" for="profContact">Contact Number <span class="req">*</span></label>
+                    <input
+                      type="tel"
+                      id="profContact"
+                      name="contactNumber"
+                      class="form-control"
+                      placeholder="e.g. +63 917 555 0148"
+                    />
+                    <div class="field-error" data-error-for="contactNumber"></div>
+                  </div>
+
+                  <div class="form-group full-width">
+                    <label class="form-label" for="profAddress">Home / Dormitory Address <span class="req">*</span></label>
+                    <input
+                      type="text"
+                      id="profAddress"
+                      name="address"
+                      class="form-control"
+                      placeholder="Enter complete address"
+                    />
+                    <div class="field-error" data-error-for="address"></div>
+                  </div>
+
+                  <div class="form-group">
+                    <label class="form-label" for="profGuardianName">Emergency Contact / Guardian Name</label>
+                    <input
+                      type="text"
+                      id="profGuardianName"
+                      name="guardianName"
+                      class="form-control"
+                      placeholder="Guardian's full name"
+                    />
+                    <div class="field-error" data-error-for="guardianName"></div>
+                  </div>
+
+                  <div class="form-group">
+                    <label class="form-label" for="profGuardianContact">Emergency Contact Number</label>
+                    <input
+                      type="tel"
+                      id="profGuardianContact"
+                      name="guardianContact"
+                      class="form-control"
+                      placeholder="Emergency phone number"
+                    />
+                    <div class="field-error" data-error-for="guardianContact"></div>
+                  </div>
+
+                  <div class="form-group full-width">
+                    <label class="form-label" for="profBio">Academic Bio / Goals</label>
+                    <textarea
+                      id="profBio"
+                      name="bio"
+                      rows="3"
+                      class="form-control"
+                      placeholder="Brief academic bio or semester goals..."
+                    ></textarea>
+                    <div class="field-error" data-error-for="bio"></div>
+                  </div>
+                </div>
+
+                <div class="modal-actions profile-form-actions">
+                  <button type="button" class="btn btn-secondary" id="discardProfileChangesBtn">
+                    Cancel
+                  </button>
+                  <button type="submit" class="btn btn-primary">Save Profile Information</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </section>

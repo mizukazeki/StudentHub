@@ -3,31 +3,128 @@
  * BANTUG UNIVERSITY - Student Portal System
  * Module 3: Class Schedule (schedule.js)
  *
- * Program: Bachelor of Science in Information Technology
- * Year and Section: BSIT 2-2
- *
- * Displays the official BSIT 2-2 Monday–Friday class timetable connected
- * directly to the 9 unique BSIT 2-2 subject records (no duplicate subjects).
- * Features:
- * - Weekly Timetable View (all 5 weekdays with current day highlighted)
- * - Daily Schedule View (switch between Monday–Friday daily timetables)
- * - Connected 9 Enrolled Subjects Reference Table
- * - Search by subject code, course code, subject name, instructor, or room
+ * Hydrates `pages/student/schedule.html` with the student's Monday–Friday
+ * (and Saturday if applicable) timetable connected directly to enrolled records:
+ * - Overview pills (Section, Academic Year, Semester) & total class hours
+ * - Weekly Timetable Grid with chronological order, subtle subject colors & overlap check
+ * - Daily Schedule View with Prev / Today / Next weekday navigation
+ * - Class Details modal & Connected Enrolled Subjects Reference Table
+ * - Live search by subject code, course code, subject name, instructor, or room
  * ============================================================================
  */
 
 const StudentHubSchedule = (function () {
-  const { escapeHtml, getTodayDayName } = window.StudentHubApp;
+  const { escapeHtml, getTodayDayName, openModal, closeModal, navigateTo } =
+    window.StudentHubApp;
 
-  const WEEKDAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
+  const BASE_WEEKDAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
 
   let viewMode = "weekly"; // "weekly" | "daily"
   let selectedDay = null;
   let searchQuery = "";
+  let renderedSessionsByKey = Object.create(null);
 
-  function getDefaultSelectedDay() {
+  function parseAcademicTerm(termStr) {
+    const raw = String(termStr || "").trim();
+    if (!raw) return { semester: "—", academicYear: "—" };
+    const ayMatch = raw.match(/(AY\s*\d{4}\s*[–-]\s*\d{4}|\d{4}\s*[–-]\s*\d{4})/i);
+    const academicYear = ayMatch ? ayMatch[1].replace(/\s+/g, " ").trim() : "—";
+    let semester = raw;
+    if (ayMatch) {
+      semester = raw
+        .replace(ayMatch[0], "")
+        .replace(/^[,\s•–-]+|[,\s•–-]+$/g, "")
+        .trim();
+    }
+    return {
+      semester: semester || raw,
+      academicYear
+    };
+  }
+
+  function parseTimeMinutes(hhmm) {
+    if (!hhmm || typeof hhmm !== "string") return null;
+    const match = /^(\d{1,2}):(\d{2})$/.exec(hhmm.trim());
+    if (!match) return null;
+    const hours = Number(match[1]);
+    const mins = Number(match[2]);
+    if (isNaN(hours) || isNaN(mins) || hours < 0 || hours > 23 || mins < 0 || mins > 59) {
+      return null;
+    }
+    return hours * 60 + mins;
+  }
+
+  function computeSessionDurationMinutes(sess) {
+    if (!sess) return 0;
+    const start = parseTimeMinutes(sess.startTime);
+    const end = parseTimeMinutes(sess.endTime);
+    if (start === null || end === null || end <= start) return 0;
+    return end - start;
+  }
+
+  function formatDurationLabel(mins) {
+    if (!mins || mins <= 0) return "Not specified";
+    if (mins < 60) return `${mins} mins`;
+    const hrs = mins / 60;
+    const rounded = Number.isInteger(hrs) ? String(hrs) : hrs.toFixed(1);
+    return `${rounded} ${hrs === 1 ? "hr" : "hrs"}`;
+  }
+
+  function formatTotalWeeklyHours(sessions) {
+    const totalMins = (sessions || []).reduce(
+      (sum, sess) => sum + computeSessionDurationMinutes(sess),
+      0
+    );
+    if (totalMins <= 0) return "0 hrs/wk total class hours";
+    const hrs = totalMins / 60;
+    const label = Number.isInteger(hrs) ? String(hrs) : hrs.toFixed(1);
+    return `${label} hrs/wk total class hours`;
+  }
+
+  function sortChronologicalSessions(sessions) {
+    return [...(sessions || [])].sort((a, b) => {
+      const startCmp = String(a.startTime || "").localeCompare(String(b.startTime || ""));
+      if (startCmp !== 0) return startCmp;
+      return String(a.endTime || "").localeCompare(String(b.endTime || ""));
+    });
+  }
+
+  function detectOverlappingIndices(sortedSessions) {
+    const conflictIndices = new Set();
+    for (let i = 0; i < sortedSessions.length; i++) {
+      const aStart = parseTimeMinutes(sortedSessions[i].startTime);
+      const aEnd = parseTimeMinutes(sortedSessions[i].endTime);
+      if (aStart === null || aEnd === null) continue;
+      for (let j = i + 1; j < sortedSessions.length; j++) {
+        const bStart = parseTimeMinutes(sortedSessions[j].startTime);
+        const bEnd = parseTimeMinutes(sortedSessions[j].endTime);
+        if (bStart === null || bEnd === null) continue;
+        if (aStart < bEnd && bStart < aEnd) {
+          conflictIndices.add(i);
+          conflictIndices.add(j);
+        }
+      }
+    }
+    return conflictIndices;
+  }
+
+  function getSubjectToneClass(subjectCode) {
+    const code = String(subjectCode || "");
+    let hash = 0;
+    for (let i = 0; i < code.length; i++) {
+      hash = (hash * 31 + code.charCodeAt(i)) % 7;
+    }
+    return `schedule-tone-${Math.abs(hash) % 7}`;
+  }
+
+  function getActiveDays(subjects) {
+    const satSessions = StudentHubStorage.getSessionsByDay("Saturday", subjects) || [];
+    return satSessions.length > 0 ? [...BASE_WEEKDAYS, "Saturday"] : [...BASE_WEEKDAYS];
+  }
+
+  function getDefaultSelectedDay(activeDays) {
     const today = getTodayDayName();
-    return WEEKDAYS.includes(today) ? today : "Monday";
+    return activeDays.includes(today) ? today : "Monday";
   }
 
   function filterSession(sess, q) {
@@ -36,332 +133,466 @@ const StudentHubSchedule = (function () {
     return hay.includes(q);
   }
 
-  function render() {
-    const container = document.getElementById("scheduleContainer");
-    if (!container) return;
+  function openClassDetailsModal(sessionKey) {
+    const entry = renderedSessionsByKey[sessionKey];
+    if (!entry || typeof openModal !== "function") return;
+    const { sess, isConflict, sectionLabel } = entry;
+    const durationMins = computeSessionDurationMinutes(sess);
+    const durationLabel = formatDurationLabel(durationMins);
+    const room =
+      sess.room && String(sess.room).trim() !== "" ? String(sess.room).trim() : "Not specified";
+
+    const html = `
+      <div class="schedule-modal-wrap">
+        <div class="schedule-modal-badges">
+          <span class="badge badge-primary">${escapeHtml(sess.subjectCode)}</span>
+          <div class="schedule-modal-badges-right">
+            <span class="badge badge-info">${escapeHtml(sess.day || "Not specified")}</span>
+            ${
+              isConflict
+                ? `<span class="badge badge-danger">Schedule Overlap Detected</span>`
+                : ""
+            }
+          </div>
+        </div>
+
+        <div>
+          <h3 class="schedule-modal-title">${escapeHtml(sess.displaySubject || sess.subjectName)}</h3>
+          <p class="schedule-modal-sub">${escapeHtml(
+            sess.courseCode ? `${sess.courseCode} • ` : ""
+          )}Section ${escapeHtml(sess.section || sectionLabel || "BSIT 2-2")}</p>
+        </div>
+
+        <div class="schedule-modal-meta-grid">
+          <div>
+            <span class="schedule-modal-meta-label">Schedule Day</span>
+            <strong>${escapeHtml(sess.day || "Not specified")}</strong>
+          </div>
+          <div>
+            <span class="schedule-modal-meta-label">Class Time</span>
+            <strong>${escapeHtml(sess.timeLabel || "Not specified")}</strong>
+          </div>
+          <div>
+            <span class="schedule-modal-meta-label">Class Duration</span>
+            <strong>${escapeHtml(durationLabel)}</strong>
+          </div>
+          <div>
+            <span class="schedule-modal-meta-label">Room / Laboratory</span>
+            <strong>${escapeHtml(room)}</strong>
+          </div>
+          <div>
+            <span class="schedule-modal-meta-label">Assigned Instructor</span>
+            <strong>${escapeHtml(sess.instructor || "Not specified")}</strong>
+          </div>
+          <div>
+            <span class="schedule-modal-meta-label">Units</span>
+            <strong>${escapeHtml(Number(sess.units) || 3)} Units</strong>
+          </div>
+        </div>
+
+        <div class="modal-actions">
+          <button type="button" class="btn btn-secondary" id="closeClassDetailModalBtn">Close</button>
+          <button type="button" class="btn btn-primary" id="openSubjectsFromClassBtn">My Subjects &rarr;</button>
+        </div>
+      </div>
+    `;
+
+    openModal(`Class Details — ${sess.subjectCode}`, html, (bodyEl) => {
+      bodyEl.querySelector("#closeClassDetailModalBtn")?.addEventListener("click", closeModal);
+      bodyEl.querySelector("#openSubjectsFromClassBtn")?.addEventListener("click", () => {
+        if (typeof closeModal === "function") closeModal();
+        if (typeof navigateTo === "function") navigateTo("subjects");
+      });
+    });
+  }
+
+  function renderTimetableOnly() {
+    const timetableEl = document.getElementById("scheduleTimetableContainer");
+    if (!timetableEl) return;
 
     const state = StudentHubStorage.getState();
     const subjects = StudentHubStorage.getStudentEnrolledSubjects(
       state.profile,
       state.schedules
     );
+    const activeDays = getActiveDays(subjects);
     const todayName = getTodayDayName();
-    if (!selectedDay || !WEEKDAYS.includes(selectedDay)) {
-      selectedDay = getDefaultSelectedDay();
+    if (!selectedDay || !activeDays.includes(selectedDay)) {
+      selectedDay = getDefaultSelectedDay(activeDays);
     }
-
-    const allSessions = StudentHubStorage.getAllScheduleSessions(subjects);
+    const sectionLabel = (state.profile && state.profile.section) || "BSIT 2-2";
     const q = searchQuery.trim().toLowerCase();
 
-    container.innerHTML = `
-      <div class="section-header">
-        <div class="section-header-info">
-          <h2>BANTUG UNIVERSITY &mdash; Class Schedule (${escapeHtml(
-      state.profile.section || "BSIT 2-2"
-    )})</h2>
-          <p>
-            <strong>Program:</strong> Bachelor of Science in Information Technology &bull;
-            <strong>Year &amp; Section:</strong> BSIT 2-2 &bull;
-            <strong>Term:</strong> ${escapeHtml(state.profile.academicTerm || "2nd Semester, AY 2026–2027")}
-          </p>
-        </div>
-        <div class="section-header-actions">
-          <div class="schedule-view-switcher" role="group" aria-label="Switch Schedule View">
-            <button
-              type="button"
-              class="btn ${viewMode === "weekly" ? "btn-primary" : "btn-secondary"}"
-              id="btnWeeklyView"
-            >
-              Weekly Timetable View
-            </button>
-            <button
-              type="button"
-              class="btn ${viewMode === "daily" ? "btn-primary" : "btn-secondary"}"
-              id="btnDailyView"
-            >
-              Daily Schedule View
-            </button>
-          </div>
-        </div>
-      </div>
+    renderedSessionsByKey = Object.create(null);
 
-      <!-- Summary Stat Cards -->
-      <div class="stats-grid">
-        <div class="stat-card">
-          <div class="stat-info">
-            <span class="stat-label">Year &amp; Section</span>
-            <span class="stat-value">BSIT 2-2</span>
-            <span class="stat-sub">BS in Information Technology</span>
-          </div>
-          <div class="stat-icon icon-blue">
-            <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none">
-              <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
-              <line x1="16" y1="2" x2="16" y2="6"></line>
-              <line x1="8" y1="2" x2="8" y2="6"></line>
-              <line x1="3" y1="10" x2="21" y2="10"></line>
-            </svg>
-          </div>
-        </div>
+    timetableEl.innerHTML =
+      viewMode === "weekly"
+        ? renderWeeklyTimetable(subjects, activeDays, todayName, q, sectionLabel)
+        : renderDailySchedule(subjects, activeDays, selectedDay, todayName, q, sectionLabel);
+  }
 
-        <div class="stat-card">
-          <div class="stat-info">
-            <span class="stat-label">Enrolled Subjects</span>
-            <span class="stat-value">${subjects.length} Subjects</span>
-            <span class="stat-sub">Connected to Official Records</span>
-          </div>
-          <div class="stat-icon icon-purple">
-            <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none">
-              <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
-              <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
-            </svg>
-          </div>
-        </div>
+  function bindScheduleEventsOnce(container) {
+    if (!container || container.dataset.scheduleEventsBound === "1") return;
+    container.dataset.scheduleEventsBound = "1";
 
-        <div class="stat-card">
-          <div class="stat-info">
-            <span class="stat-label">Weekly Class Sessions</span>
-            <span class="stat-value">${allSessions.length} Classes</span>
-            <span class="stat-sub">Monday to Friday Timetable</span>
-          </div>
-          <div class="stat-icon icon-green">
-            <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none">
-              <circle cx="12" cy="12" r="10"></circle>
-              <polyline points="12 6 12 12 16 14"></polyline>
-            </svg>
-          </div>
-        </div>
-
-        <div class="stat-card">
-          <div class="stat-info">
-            <span class="stat-label">Current Day</span>
-            <span class="stat-value" style="font-size:1.35rem;">${escapeHtml(todayName)}</span>
-            <span class="stat-sub">${WEEKDAYS.includes(todayName)
-        ? `${StudentHubStorage.getSessionsByDay(todayName, subjects).length} classes scheduled today`
-        : "Weekend — Next classes on Monday"
-      }</span>
-          </div>
-          <div class="stat-icon icon-amber">
-            <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none">
-              <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
-            </svg>
-          </div>
-        </div>
-      </div>
-
-      <!-- Day Selector Tabs & Search Toolbar -->
-      <div class="toolbar-row">
-        <div class="day-tabs" role="tablist" aria-label="Select Weekday">
-          ${viewMode === "weekly"
-        ? `<span style="font-size:0.84rem;font-weight:600;color:var(--text-secondary);align-self:center;margin-right:6px;">Quick Jump / Daily View:</span>`
-        : ""
-      }
-          ${WEEKDAYS.map((day) => {
-        const count = StudentHubStorage.getSessionsByDay(day, subjects).length;
-        const isToday = day === todayName;
-        const isActive = viewMode === "daily" && selectedDay === day;
-        return `
-              <button
-                type="button"
-                class="day-tab ${isActive ? "active" : ""} ${isToday ? "today-indicator" : ""}"
-                data-select-day="${day}"
-              >
-                ${day} (${count})${isToday ? " • Today" : ""}
-              </button>
-            `;
-      }).join("")}
-        </div>
-
-        <div style="min-width:260px;">
-          <input
-            type="search"
-            id="scheduleSearchInput"
-            class="form-control"
-            placeholder="Search subject, code, room (R5, CL3), or instructor..."
-            value="${escapeHtml(searchQuery)}"
-          />
-        </div>
-      </div>
-
-      ${viewMode === "weekly"
-        ? renderWeeklyTimetable(subjects, todayName, q)
-        : renderDailySchedule(subjects, selectedDay, todayName, q)
-      }
-
-      <!-- Connected Enrolled BSIT 2-2 Subjects Reference Table (No Duplicate Subject Records) -->
-      <div class="card" style="margin-top:22px;">
-        <div class="card-header">
-          <h3 class="card-title">
-            <span>Connected BSIT 2-2 Subject Records &amp; Assigned Instructors</span>
-            <span class="badge badge-primary">${subjects.length} Unique Subjects</span>
-          </h3>
-          <span class="badge badge-info">Official Curriculum Load</span>
-        </div>
-
-        <div class="table-responsive">
-          <table class="data-table">
-            <thead>
-              <tr>
-                <th>Subject Code</th>
-                <th>Course Code</th>
-                <th>Subject Name</th>
-                <th>Assigned Instructor</th>
-                <th>Units</th>
-                <th>Weekly Schedule &amp; Room Assignments</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${subjects
-        .map(
-          (sub) => `
-                  <tr>
-                    <td><strong>${escapeHtml(sub.subjectCode)}</strong></td>
-                    <td><span class="badge badge-primary">${escapeHtml(sub.courseCode)}</span></td>
-                    <td><strong>${escapeHtml(sub.subjectName)}</strong></td>
-                    <td>${escapeHtml(sub.instructor)}</td>
-                    <td>${escapeHtml(sub.units || 3)}</td>
-                    <td>
-                      <div style="display:flex;flex-direction:column;gap:4px;">
-                        ${(sub.sessions || [])
-              .map(
-                (s) =>
-                  `<div style="font-size:0.82rem;">
-                                <strong>${escapeHtml(s.day)}:</strong> ${escapeHtml(s.timeLabel)}
-                                <span class="badge badge-neutral" style="margin-left:6px;">Room: ${escapeHtml(
-                    s.room
-                  )}</span>
-                              </div>`
-              )
-              .join("")}
-                      </div>
-                    </td>
-                  </tr>
-                `
-        )
-        .join("")}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    `;
-
-    // Bind Weekly vs Daily View Switcher
-    const btnWeekly = document.getElementById("btnWeeklyView");
-    const btnDaily = document.getElementById("btnDailyView");
-    if (btnWeekly) {
-      btnWeekly.addEventListener("click", () => {
-        viewMode = "weekly";
-        render();
-      });
-    }
-    if (btnDaily) {
-      btnDaily.addEventListener("click", () => {
-        viewMode = "daily";
-        render();
-      });
-    }
-
-    // Bind Weekday Tabs
-    container.querySelectorAll("[data-select-day]").forEach((btn) => {
-      btn.addEventListener("click", () => {
-        selectedDay = btn.getAttribute("data-select-day");
-        viewMode = "daily";
-        render();
-      });
+    document.getElementById("btnWeeklyView")?.addEventListener("click", () => {
+      viewMode = "weekly";
+      render();
     });
 
-    // Bind Search Input
+    document.getElementById("btnDailyView")?.addEventListener("click", () => {
+      viewMode = "daily";
+      render();
+    });
+
+    document.getElementById("btnJumpTodaySchedule")?.addEventListener("click", () => {
+      const state = StudentHubStorage.getState();
+      const subjects = StudentHubStorage.getStudentEnrolledSubjects(
+        state.profile,
+        state.schedules
+      );
+      const activeDays = getActiveDays(subjects);
+      selectedDay = getDefaultSelectedDay(activeDays);
+      viewMode = "daily";
+      render();
+    });
+
+    container.addEventListener("click", (e) => {
+      const dayTabBtn = e.target.closest ? e.target.closest("[data-select-day]") : null;
+      if (dayTabBtn) {
+        selectedDay = dayTabBtn.getAttribute("data-select-day");
+        viewMode = "daily";
+        render();
+        return;
+      }
+
+      const navDayBtn = e.target.closest ? e.target.closest("[data-nav-day]") : null;
+      if (navDayBtn) {
+        const dir = navDayBtn.getAttribute("data-nav-day");
+        const state = StudentHubStorage.getState();
+        const subjects = StudentHubStorage.getStudentEnrolledSubjects(
+          state.profile,
+          state.schedules
+        );
+        const activeDays = getActiveDays(subjects);
+        if (dir === "today") {
+          selectedDay = getDefaultSelectedDay(activeDays);
+        } else {
+          const curIdx = Math.max(0, activeDays.indexOf(selectedDay));
+          const delta = dir === "prev" ? -1 : 1;
+          const nextIdx = (curIdx + delta + activeDays.length) % activeDays.length;
+          selectedDay = activeDays[nextIdx];
+        }
+        viewMode = "daily";
+        render();
+        return;
+      }
+
+      const detailTrigger = e.target.closest ? e.target.closest("[data-open-class-detail]") : null;
+      if (detailTrigger) {
+        openClassDetailsModal(detailTrigger.getAttribute("data-open-class-detail"));
+      }
+    });
+
     const searchInput = document.getElementById("scheduleSearchInput");
     if (searchInput) {
       searchInput.addEventListener("input", (e) => {
         searchQuery = e.target.value;
-        render();
-        const restored = document.getElementById("scheduleSearchInput");
-        if (restored) {
-          restored.focus();
-          restored.setSelectionRange(searchQuery.length, searchQuery.length);
-        }
+        renderTimetableOnly();
       });
     }
   }
 
-  /**
-   * Render Weekly Timetable (Monday through Friday)
-   */
-  function renderWeeklyTimetable(subjects, todayName, q) {
-    return `
-      <div style="display:flex;flex-direction:column;gap:18px;">
-        ${WEEKDAYS.map((day) => {
-      const daySessions = StudentHubStorage.getSessionsByDay(day, subjects).filter((s) =>
-        filterSession(s, q)
+  function render() {
+    const container = document.getElementById("scheduleContainer");
+    if (!container) return;
+
+    bindScheduleEventsOnce(container);
+
+    const state = StudentHubStorage.getState();
+    const profile = state.profile || {};
+    const subjects = StudentHubStorage.getStudentEnrolledSubjects(profile, state.schedules);
+    const activeDays = getActiveDays(subjects);
+    const todayName = getTodayDayName();
+    if (!selectedDay || !activeDays.includes(selectedDay)) {
+      selectedDay = getDefaultSelectedDay(activeDays);
+    }
+
+    const sectionLabel = profile.section || "BSIT 2-2";
+    const courseLabel = profile.course || "Bachelor of Science in Information Technology";
+    const termLabel = profile.academicTerm || "2nd Semester, AY 2026–2027";
+    const parsedTerm = parseAcademicTerm(termLabel);
+    const allSessions = StudentHubStorage.getAllScheduleSessions(subjects);
+
+    // Check full-week overlaps for conflict banner
+    const conflictDays = [];
+    activeDays.forEach((d) => {
+      const sortedDay = sortChronologicalSessions(
+        StudentHubStorage.getSessionsByDay(d, subjects)
       );
+      if (detectOverlappingIndices(sortedDay).size > 0) {
+        conflictDays.push(d);
+      }
+    });
+
+    const conflictBanner = document.getElementById("scheduleConflictBanner");
+    const conflictBannerText = document.getElementById("scheduleConflictBannerText");
+    if (conflictBanner && conflictBannerText) {
+      if (conflictDays.length > 0) {
+        conflictBanner.hidden = false;
+        conflictBannerText.innerHTML = `<strong>Schedule Overlap Notice:</strong> Overlapping class times detected on <strong>${escapeHtml(
+          conflictDays.join(", ")
+        )}</strong>. Conflicting classes are highlighted below.`;
+      } else {
+        conflictBanner.hidden = true;
+        conflictBannerText.textContent = "";
+      }
+    }
+
+    // 1. Hydrate Overview Header & Pills
+    const titleEl = document.getElementById("scheduleSectionTitle");
+    const termSummaryEl = document.getElementById("scheduleTermSummary");
+    const sectionPillEl = document.getElementById("scheduleSectionPill");
+    const ayPillEl = document.getElementById("scheduleAcademicYearPill");
+    const semPillEl = document.getElementById("scheduleSemesterPill");
+
+    if (titleEl) {
+      titleEl.innerHTML = `Class Schedule &mdash; ${escapeHtml(sectionLabel)}`;
+    }
+    if (termSummaryEl) {
+      termSummaryEl.innerHTML = `
+        <strong>Program:</strong> ${escapeHtml(courseLabel)} &bull;
+        <strong>Year &amp; Section:</strong> ${escapeHtml(sectionLabel)}
+      `;
+    }
+    if (sectionPillEl) sectionPillEl.textContent = `Section: ${sectionLabel}`;
+    if (ayPillEl) ayPillEl.textContent = `Academic Year: ${parsedTerm.academicYear}`;
+    if (semPillEl) semPillEl.textContent = `Semester: ${parsedTerm.semester}`;
+
+    const btnWeekly = document.getElementById("btnWeeklyView");
+    const btnDaily = document.getElementById("btnDailyView");
+    if (btnWeekly) {
+      btnWeekly.classList.toggle("btn-primary", viewMode === "weekly");
+      btnWeekly.classList.toggle("btn-secondary", viewMode !== "weekly");
+    }
+    if (btnDaily) {
+      btnDaily.classList.toggle("btn-primary", viewMode === "daily");
+      btnDaily.classList.toggle("btn-secondary", viewMode !== "daily");
+    }
+
+    // 2. Hydrate Summary Stat Cards
+    const statSecEl = document.getElementById("scheduleStatSection");
+    const statCourseSubEl = document.getElementById("scheduleStatCourseSub");
+    const statSubEl = document.getElementById("scheduleStatSubjects");
+    const statSessEl = document.getElementById("scheduleStatSessions");
+    const statHoursEl = document.getElementById("scheduleStatHours");
+    const statTodayEl = document.getElementById("scheduleStatToday");
+    const statTodaySubEl = document.getElementById("scheduleStatTodaySub");
+
+    if (statSecEl) statSecEl.textContent = sectionLabel;
+    if (statCourseSubEl) statCourseSubEl.textContent = courseLabel;
+    if (statSubEl) statSubEl.textContent = `${subjects.length} Subjects`;
+    if (statSessEl) statSessEl.textContent = `${allSessions.length} Classes`;
+    if (statHoursEl) statHoursEl.textContent = formatTotalWeeklyHours(allSessions);
+    if (statTodayEl) statTodayEl.textContent = todayName;
+    if (statTodaySubEl) {
+      statTodaySubEl.textContent = activeDays.includes(todayName)
+        ? `${StudentHubStorage.getSessionsByDay(todayName, subjects).length} classes scheduled today`
+        : "Weekend — Next classes on Monday";
+    }
+
+    // 3. Hydrate Weekday Tabs & Search Input
+    const quickJumpLabel = document.getElementById("scheduleQuickJumpLabel");
+    if (quickJumpLabel) {
+      quickJumpLabel.hidden = viewMode !== "weekly";
+    }
+    container.querySelectorAll("[data-select-day]").forEach((btn) => {
+      const day = btn.getAttribute("data-select-day");
+      const showDay = activeDays.includes(day);
+      btn.hidden = !showDay;
+      if (!showDay) return;
+
+      const count = StudentHubStorage.getSessionsByDay(day, subjects).length;
       const isToday = day === todayName;
+      const isActive = viewMode === "daily" && selectedDay === day;
 
-      return `
-            <div class="card ${isToday ? "is-today" : ""}" style="${isToday ? "border: 2px solid var(--royal-600);" : ""
-        }">
-              <div class="card-header">
-                <h3 class="card-title">
-                  <span>${escapeHtml(day.toUpperCase())}</span>
-                  ${isToday
-          ? `<span class="badge badge-primary">Today (${escapeHtml(day)})</span>`
-          : `<span class="badge badge-neutral">${daySessions.length} ${daySessions.length === 1 ? "Class" : "Classes"
-          }</span>`
-        }
-                </h3>
-                <span style="font-size:0.8rem;color:var(--text-muted);">BSIT 2-2 Official Timetable</span>
-              </div>
+      btn.classList.toggle("active", isActive);
+      btn.classList.toggle("today-indicator", isToday);
+      btn.textContent = `${day} (${count})${isToday ? " • Today" : ""}`;
+    });
 
-              ${daySessions.length === 0
-          ? `<div class="empty-state" style="padding:18px;"><p>No classes match your search on ${escapeHtml(
-            day
-          )}.</p></div>`
-          : `
-                  <div class="table-responsive">
-                    <table class="data-table">
-                      <thead>
-                        <tr>
-                          <th style="width:210px;">Time</th>
-                          <th>Subject</th>
-                          <th style="width:140px;">Subject Code</th>
-                          <th style="width:220px;">Instructor</th>
-                          <th style="width:150px;">Room</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        ${daySessions
-            .map(
-              (sess) => `
-                            <tr>
-                              <td>
-                                <span class="time-pill" style="display:inline-block;">${escapeHtml(
-                sess.timeLabel
-              )}</span>
-                              </td>
-                              <td>
-                                <strong>${escapeHtml(sess.displaySubject)}</strong>
-                              </td>
-                              <td>
-                                <span class="badge badge-info">${escapeHtml(sess.subjectCode)}</span>
-                              </td>
-                              <td>${escapeHtml(sess.instructor)}</td>
-                              <td>
-                                <span class="badge ${sess.room === "Not specified" ? "badge-neutral" : "badge-primary"
-                }">
-                                  ${escapeHtml(sess.room)}
-                                </span>
-                              </td>
-                            </tr>
-                          `
-            )
-            .join("")}
-                      </tbody>
-                    </table>
-                  </div>
+    const searchInput = document.getElementById("scheduleSearchInput");
+    if (searchInput && searchInput.value !== searchQuery) {
+      searchInput.value = searchQuery;
+    }
+
+    // 4. Hydrate Weekly / Daily Timetable
+    renderTimetableOnly();
+
+    // 5. Hydrate Connected Enrolled Subjects Reference Table
+    const refHeadingEl = document.getElementById("scheduleRefHeading");
+    const refCountBadgeEl = document.getElementById("scheduleRefCountBadge");
+    const refBodyEl = document.getElementById("scheduleRefTableBody");
+
+    if (refHeadingEl) {
+      refHeadingEl.textContent = `Connected ${sectionLabel} Subject Records & Assigned Instructors`;
+    }
+    if (refCountBadgeEl) {
+      refCountBadgeEl.textContent = `${subjects.length} Unique Subjects`;
+    }
+    if (refBodyEl) {
+      refBodyEl.innerHTML =
+        subjects.length === 0
+          ? `<tr><td colspan="6" class="schedule-ref-empty">No enrolled subject records found for Section ${escapeHtml(
+              sectionLabel
+            )}.</td></tr>`
+          : subjects
+              .map(
+                (sub) => `
+                  <tr>
+                    <td><strong>${escapeHtml(sub.subjectCode)}</strong></td>
+                    <td><span class="badge badge-primary">${escapeHtml(
+                      sub.courseCode || "BSIT"
+                    )}</span></td>
+                    <td><strong>${escapeHtml(sub.subjectName)}</strong></td>
+                    <td>${escapeHtml(sub.instructor || "Not specified")}</td>
+                    <td>${escapeHtml(sub.units || 3)}</td>
+                    <td>
+                      <div class="schedule-ref-sessions-list">
+                        ${(sub.sessions || [])
+                          .map(
+                            (s) =>
+                              `<div class="schedule-ref-session-row">
+                                <strong>${escapeHtml(s.day)}:</strong> ${escapeHtml(s.timeLabel)}
+                                <span class="badge badge-neutral schedule-ref-room-badge">Room: ${escapeHtml(
+                                  s.room || "Not specified"
+                                )}</span>
+                              </div>`
+                          )
+                          .join("")}
+                      </div>
+                    </td>
+                  </tr>
                 `
-        }
-            </div>
-          `;
-    }).join("")}
+              )
+              .join("");
+    }
+  }
+
+  /**
+   * Render Weekly Timetable Grid (Monday–Friday, plus Saturday if applicable)
+   */
+  function renderWeeklyTimetable(subjects, activeDays, todayName, q, sectionLabel = "BSIT 2-2") {
+    if (!subjects || subjects.length === 0) {
+      return `
+        <div class="card">
+          <div class="empty-state schedule-empty-compact">
+            <h3>No Class Schedule Found</h3>
+            <p>No classes have been scheduled for Section <strong>${escapeHtml(
+              sectionLabel
+            )}</strong>.</p>
+          </div>
+        </div>
+      `;
+    }
+
+    const boardColsCls =
+      activeDays.length >= 6 ? "schedule-week-board schedule-week-board-6" : "schedule-week-board";
+
+    return `
+      <div class="card schedule-board-card">
+        <div class="card-header">
+          <div>
+            <h3 class="card-title">Weekly Class Timetable &mdash; ${escapeHtml(sectionLabel)}</h3>
+            <p class="schedule-card-sublabel">Chronological schedule per weekday &bull; Click any class for details</p>
+          </div>
+          <span class="badge badge-neutral">${escapeHtml(activeDays[0])} &ndash; ${escapeHtml(
+            activeDays[activeDays.length - 1]
+          )}</span>
+        </div>
+
+        <div class="schedule-board-scroll">
+          <div class="${boardColsCls}">
+            ${activeDays
+              .map((day) => {
+                const sortedDaySessions = sortChronologicalSessions(
+                  StudentHubStorage.getSessionsByDay(day, subjects)
+                );
+                const conflictIndices = detectOverlappingIndices(sortedDaySessions);
+                const visiblePairs = sortedDaySessions
+                  .map((sess, idx) => ({ sess, idx, isConflict: conflictIndices.has(idx) }))
+                  .filter((pair) => filterSession(pair.sess, q));
+                const isToday = day === todayName;
+
+                return `
+                  <div class="schedule-week-col ${isToday ? "is-today" : ""}">
+                    <div class="schedule-week-col-header">
+                      <span class="schedule-week-day-title">${escapeHtml(day)}</span>
+                      ${
+                        isToday
+                          ? `<span class="badge badge-primary">Today</span>`
+                          : `<span class="badge badge-neutral">${visiblePairs.length}</span>`
+                      }
+                    </div>
+
+                    <div class="schedule-week-col-body">
+                      ${
+                        visiblePairs.length === 0
+                          ? `<div class="schedule-col-empty">No matching classes</div>`
+                          : visiblePairs
+                              .map(({ sess, idx, isConflict }) => {
+                                const key = `${day}__${idx}__${sess.subjectCode}`;
+                                renderedSessionsByKey[key] = { sess, isConflict, sectionLabel };
+                                const toneCls = getSubjectToneClass(sess.subjectCode);
+                                const durationMins = computeSessionDurationMinutes(sess);
+                                return `
+                                  <button
+                                    type="button"
+                                    class="schedule-slot-card ${toneCls} ${
+                                      isConflict ? "is-conflict" : ""
+                                    }"
+                                    data-open-class-detail="${escapeHtml(key)}"
+                                  >
+                                    <div class="schedule-slot-top">
+                                      <span class="badge badge-primary">${escapeHtml(
+                                        sess.subjectCode
+                                      )}</span>
+                                      ${
+                                        isConflict
+                                          ? `<span class="badge badge-danger">Overlap</span>`
+                                          : durationMins > 0
+                                            ? `<span class="schedule-slot-dur">${escapeHtml(
+                                                formatDurationLabel(durationMins)
+                                              )}</span>`
+                                            : ""
+                                      }
+                                    </div>
+                                    <div class="schedule-slot-time">${escapeHtml(
+                                      sess.timeLabel || "Not specified"
+                                    )}</div>
+                                    <div class="schedule-slot-subject">${escapeHtml(
+                                      sess.displaySubject || sess.subjectName
+                                    )}</div>
+                                    <div class="schedule-slot-meta">
+                                      <span><strong>Instructor:</strong> ${escapeHtml(
+                                        sess.instructor || "Not specified"
+                                      )}</span>
+                                      <span><strong>Room:</strong> ${escapeHtml(
+                                        sess.room || "Not specified"
+                                      )}</span>
+                                    </div>
+                                  </button>
+                                `;
+                              })
+                              .join("")
+                      }
+                    </div>
+                  </div>
+                `;
+              })
+              .join("")}
+          </div>
+        </div>
       </div>
     `;
   }
@@ -369,91 +600,164 @@ const StudentHubSchedule = (function () {
   /**
    * Render Daily Schedule View for the selected weekday
    */
-  function renderDailySchedule(subjects, day, todayName, q) {
-    const daySessions = StudentHubStorage.getSessionsByDay(day, subjects).filter((s) =>
-      filterSession(s, q)
+  function renderDailySchedule(
+    subjects,
+    activeDays,
+    day,
+    todayName,
+    q,
+    sectionLabel = "BSIT 2-2"
+  ) {
+    const sortedDaySessions = sortChronologicalSessions(
+      StudentHubStorage.getSessionsByDay(day, subjects)
     );
+    const conflictIndices = detectOverlappingIndices(sortedDaySessions);
+    const dayPairs = sortedDaySessions
+      .map((sess, idx) => ({ sess, idx, isConflict: conflictIndices.has(idx) }))
+      .filter((pair) => filterSession(pair.sess, q));
     const isToday = day === todayName;
 
     return `
-      <div class="card" style="${isToday ? "border: 2px solid var(--royal-600);" : ""}">
+      <div class="card schedule-day-card ${isToday ? "is-today" : ""}">
         <div class="card-header">
-          <h3 class="card-title">
-            <span>${escapeHtml(day.toUpperCase())} &mdash; Daily Class Schedule (BSIT 2-2)</span>
-            ${isToday ? `<span class="badge badge-primary">Today</span>` : ""}
-          </h3>
-          <span class="badge badge-info">${daySessions.length} Scheduled ${daySessions.length === 1 ? "Class" : "Classes"
-      }</span>
+          <div>
+            <h3 class="card-title">
+              <span>${escapeHtml(day.toUpperCase())} &mdash; Daily Class Schedule (${escapeHtml(
+                sectionLabel
+              )})</span>
+              ${isToday ? `<span class="badge badge-primary">Today</span>` : ""}
+              <span class="badge badge-info">${dayPairs.length} Scheduled ${
+                dayPairs.length === 1 ? "Class" : "Classes"
+              }</span>
+            </h3>
+            <p class="schedule-card-sublabel">Chronological daily classes &bull; Use controls to step through days</p>
+          </div>
+          <div class="schedule-daily-nav" role="group" aria-label="Navigate Days">
+            <button type="button" class="btn btn-sm btn-secondary" data-nav-day="prev">&larr; Prev Day</button>
+            <button type="button" class="btn btn-sm btn-secondary" data-nav-day="today">Today</button>
+            <button type="button" class="btn btn-sm btn-secondary" data-nav-day="next">Next Day &rarr;</button>
+          </div>
         </div>
 
-        ${daySessions.length === 0
-        ? `<div class="empty-state"><p>No classes match your search for ${escapeHtml(day)}.</p></div>`
-        : `
-            <div class="table-responsive" style="margin-bottom:18px;">
+        ${
+          dayPairs.length === 0
+            ? `<div class="empty-state schedule-empty-compact"><p>No classes match your search for ${escapeHtml(
+                day
+              )}.</p></div>`
+            : `
+            <div class="table-responsive schedule-daily-table-wrap">
               <table class="data-table">
                 <thead>
                   <tr>
-                    <th style="width:210px;">Time</th>
+                    <th class="schedule-col-time">Time</th>
                     <th>Subject</th>
-                    <th style="width:140px;">Subject Code</th>
-                    <th style="width:220px;">Instructor</th>
-                    <th style="width:150px;">Room</th>
+                    <th class="schedule-col-code">Subject Code</th>
+                    <th class="schedule-col-instructor">Instructor</th>
+                    <th class="schedule-col-room">Room</th>
+                    <th>Details</th>
                   </tr>
                 </thead>
                 <tbody>
-                  ${daySessions
-          .map(
-            (sess) => `
-                      <tr>
-                        <td><span class="time-pill" style="display:inline-block;">${escapeHtml(
-              sess.timeLabel
-            )}</span></td>
-                        <td><strong>${escapeHtml(sess.displaySubject)}</strong></td>
-                        <td><span class="badge badge-info">${escapeHtml(sess.subjectCode)}</span></td>
-                        <td>${escapeHtml(sess.instructor)}</td>
-                        <td>
-                          <span class="badge ${sess.room === "Not specified" ? "badge-neutral" : "badge-primary"
-              }">${escapeHtml(sess.room)}</span>
-                        </td>
-                      </tr>
-                    `
-          )
-          .join("")}
+                  ${dayPairs
+                    .map(({ sess, idx, isConflict }) => {
+                      const key = `${day}__daily__${idx}__${sess.subjectCode}`;
+                      renderedSessionsByKey[key] = { sess, isConflict, sectionLabel };
+                      return `
+                        <tr class="${isConflict ? "schedule-row-conflict" : ""}">
+                          <td>
+                            <span class="time-pill schedule-time-pill-inline">${escapeHtml(
+                              sess.timeLabel
+                            )}</span>
+                            ${
+                              isConflict
+                                ? `<span class="badge badge-danger schedule-inline-conflict-badge">Overlap</span>`
+                                : ""
+                            }
+                          </td>
+                          <td><strong>${escapeHtml(sess.displaySubject)}</strong></td>
+                          <td><span class="badge badge-info">${escapeHtml(sess.subjectCode)}</span></td>
+                          <td>${escapeHtml(sess.instructor)}</td>
+                          <td>
+                            <span class="badge ${
+                              sess.room === "Not specified" ? "badge-neutral" : "badge-primary"
+                            }">${escapeHtml(sess.room)}</span>
+                          </td>
+                          <td>
+                            <button
+                              type="button"
+                              class="btn btn-sm btn-secondary"
+                              data-open-class-detail="${escapeHtml(key)}"
+                            >
+                              Details
+                            </button>
+                          </td>
+                        </tr>
+                      `;
+                    })
+                    .join("")}
                 </tbody>
               </table>
             </div>
 
             <div class="schedule-days-grid">
-              ${daySessions
-          .map(
-            (sess) => `
-                  <div class="schedule-item-card" style="margin-bottom:0;">
-                    <div class="schedule-item-top">
-                      <span class="time-pill">${escapeHtml(sess.timeLabel)}</span>
-                      <span class="badge badge-primary">Room: ${escapeHtml(sess.room)}</span>
+              ${dayPairs
+                .map(({ sess, idx, isConflict }) => {
+                  const key = `${day}__daily__${idx}__${sess.subjectCode}`;
+                  const toneCls = getSubjectToneClass(sess.subjectCode);
+                  return `
+                    <div
+                      class="schedule-item-card schedule-daily-card-item ${toneCls} ${
+                        isConflict ? "is-conflict" : ""
+                      }"
+                    >
+                      <div class="schedule-item-top">
+                        <span class="time-pill">${escapeHtml(sess.timeLabel)}</span>
+                        <span class="badge ${
+                          isConflict ? "badge-danger" : "badge-primary"
+                        }">${
+                          isConflict ? "Overlap" : `Room: ${escapeHtml(sess.room)}`
+                        }</span>
+                      </div>
+                      <div class="schedule-subject schedule-daily-subject">
+                        ${escapeHtml(sess.displaySubject)}
+                      </div>
+                      <div class="schedule-details">
+                        <span><strong>Subject Code:</strong> ${escapeHtml(sess.subjectCode)}</span>
+                        <span><strong>Room:</strong> ${escapeHtml(sess.room)}</span>
+                      </div>
+                      <div class="schedule-details">
+                        <span><strong>Instructor:</strong> ${escapeHtml(sess.instructor)}</span>
+                      </div>
+                      <div class="schedule-item-footer">
+                        <button
+                          type="button"
+                          class="btn btn-sm btn-secondary"
+                          data-open-class-detail="${escapeHtml(key)}"
+                        >
+                          View Details
+                        </button>
+                      </div>
                     </div>
-                    <div class="schedule-subject" style="margin-top:6px;">
-                      ${escapeHtml(sess.displaySubject)}
-                    </div>
-                    <div class="schedule-details">
-                      <span><strong>Subject Code:</strong> ${escapeHtml(sess.subjectCode)}</span>
-                      <span><strong>Section:</strong> ${escapeHtml(sess.section)}</span>
-                    </div>
-                    <div class="schedule-details">
-                      <span><strong>Instructor:</strong> ${escapeHtml(sess.instructor)}</span>
-                    </div>
-                  </div>
-                `
-          )
-          .join("")}
+                  `;
+                })
+                .join("")}
             </div>
           `
-      }
+        }
       </div>
     `;
   }
 
-  return { render };
+  return {
+    render,
+    parseAcademicTerm,
+    parseTimeMinutes,
+    computeSessionDurationMinutes,
+    formatDurationLabel,
+    detectOverlappingIndices,
+    sortChronologicalSessions,
+    getActiveDays
+  };
 })();
 
 window.StudentHubSchedule = StudentHubSchedule;
