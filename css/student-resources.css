@@ -1,0 +1,347 @@
+/* ==========================================================================
+   BANTUG UNIVERSITY - Student Learning Resources Stylesheet
+   (css/student-resources.css)
+   Dedicated styles for `pages/student/resources.html`:
+   - Aligned with Dashboard, Grades, Profile, Subjects, Schedule, Attendance,
+     Tasks & Announcements
+   - Overview header with Available Resources, Categories & Subjects pills
+   - 3 uniform summary cards
+   - Category tabs & Search/Filter toolbar
+   - Multi-column resource card grid with category/type icons
+   - Responsive breakpoints for Desktop, Laptop, Tablet & Mobile
+   ========================================================================== */
+
+#section-resources #resourcesContainer {
+  min-width: 0;
+  max-width: 100%;
+}
+
+/* Header & Overview Pills */
+.resources-overview-header {
+  gap: 16px;
+}
+
+#section-resources .section-header-info {
+  flex: 1 1 320px;
+  min-width: 0;
+}
+
+.resources-overview-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.resources-student-badge {
+  padding: 8px 14px;
+  font-size: 0.82rem;
+}
+
+.resources-notice-banner {
+  margin-bottom: 20px;
+}
+
+/* Three Summary Stat Cards */
+#section-resources .student-resources-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+#section-resources .student-resources-stats .stat-card {
+  min-width: 0;
+  min-height: 112px;
+  padding: 18px 20px;
+  border: 1px solid var(--border-color);
+  box-shadow: var(--shadow-xs);
+}
+
+#section-resources .student-resources-stats .stat-info {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+#section-resources .student-resources-stats .stat-value {
+  font-variant-numeric: tabular-nums;
+}
+
+.res-stat-card-total {
+  border-top: 3px solid var(--royal-600, #2563eb) !important;
+}
+
+.res-stat-card-categories {
+  border-top: 3px solid var(--purple-600, #7c3aed) !important;
+}
+
+.res-stat-card-subjects {
+  border-top: 3px solid var(--success-600, #16a34a) !important;
+}
+
+/* Category Tabs & Filter Toolbar Card */
+.resources-toolbar-card {
+  padding: 16px 20px;
+  margin-bottom: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.resources-tabs-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.res-tab-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 13px;
+  border-radius: 999px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-surface-alt);
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--transition-fast), color var(--transition-fast),
+    border-color var(--transition-fast);
+}
+
+.res-tab-btn:hover {
+  border-color: var(--royal-500, #3b82f6);
+  color: var(--text-main);
+}
+
+.res-tab-btn.is-active {
+  background: var(--royal-600, #2563eb);
+  border-color: var(--royal-600, #2563eb);
+  color: #ffffff;
+}
+
+.res-tab-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 19px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.08);
+  font-size: 0.74rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.res-tab-btn.is-active .res-tab-count {
+  background: rgba(255, 255, 255, 0.22);
+  color: #ffffff;
+}
+
+.resources-filter-row {
+  display: grid;
+  grid-template-columns: minmax(220px, 1.8fr) minmax(175px, 1.1fr) minmax(220px, 1.4fr) auto;
+  gap: 12px;
+  align-items: end;
+}
+
+.resources-filter-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+}
+
+.resources-filter-label {
+  font-size: 0.76rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.resources-filter-actions {
+  display: flex;
+  align-items: center;
+}
+
+/* Resource Cards Grid */
+#section-resources .resources-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+}
+
+#section-resources .resource-card {
+  min-width: 0;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 14px;
+  box-shadow: var(--shadow-xs);
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+#section-resources .resource-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+.resource-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.resource-card-type-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.resource-type-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+}
+
+.resource-type-icon.type-notes {
+  background: rgba(37, 99, 235, 0.12);
+  color: var(--royal-600, #2563eb);
+}
+
+.resource-type-icon.type-study {
+  background: rgba(22, 163, 74, 0.12);
+  color: var(--success-600, #16a34a);
+}
+
+.resource-type-icon.type-tutorial {
+  background: rgba(2, 132, 199, 0.12);
+  color: var(--info-600, #0284c7);
+}
+
+.resource-type-icon.type-link {
+  background: rgba(217, 119, 6, 0.12);
+  color: var(--warning-600, #d97706);
+}
+
+.resource-type-icon.type-other {
+  background: rgba(100, 116, 139, 0.12);
+  color: var(--text-secondary);
+}
+
+.resource-subject-pill {
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: var(--royal-600, #2563eb);
+  white-space: nowrap;
+}
+
+.resource-title {
+  font-size: 1.02rem;
+  font-weight: 700;
+  color: var(--text-main);
+  margin-bottom: 4px;
+  line-height: 1.35;
+}
+
+.resource-subject-name {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin-bottom: 10px;
+  word-break: break-word;
+}
+
+.resource-desc {
+  font-size: 0.86rem;
+  color: var(--text-secondary);
+  line-height: 1.55;
+  word-break: break-word;
+}
+
+.resource-meta-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  margin-top: 12px;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface-alt);
+  border: 1px solid var(--border-color);
+  font-size: 0.76rem;
+  color: var(--text-muted);
+}
+
+#section-resources .resource-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-color);
+}
+
+#section-resources .resource-footer .table-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* Responsive Breakpoints */
+@media (max-width: 1200px) {
+  #section-resources .resources-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .resources-filter-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 900px) {
+  #section-resources .student-resources-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 768px) {
+  #section-resources .resources-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .resources-filter-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 520px) {
+  #section-resources .student-resources-stats {
+    grid-template-columns: 1fr;
+  }
+
+  #section-resources .resource-footer .table-actions {
+    width: 100%;
+  }
+
+  #section-resources .resource-footer .table-actions .btn {
+    flex: 1 1 auto;
+  }
+}
+

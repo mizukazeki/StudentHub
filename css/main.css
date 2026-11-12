@@ -1,0 +1,31 @@
+/* ==========================================================================
+   BANTUG UNIVERSITY - Modular Stylesheet Entry Point (css/main.css)
+   Imports CSS layers in strict cascade order:
+   Base -> Layout -> Components -> Pages -> Responsive
+   ========================================================================== */
+
+/* 1. Base */
+@import url("./base/variables.css");
+@import url("./base/reset.css");
+
+/* 2. Layout & Shared Components */
+@import url("./layout.css");
+@import url("./components.css");
+
+/* 3. Page & Portal Modules */
+@import url("./student-dashboard.css");
+@import url("./student-profile.css");
+@import url("./student-subjects.css");
+@import url("./student-schedule.css");
+@import url("./student-grades.css");
+@import url("./student-attendance.css");
+@import url("./student-tasks.css");
+@import url("./student-announcements.css");
+@import url("./student-resources.css");
+@import url("./student-settings.css");
+@import url("./pages/academic-modules.css");
+@import url("./pages/applicant.css");
+
+/* 5. Responsive Overrides (Always Last) */
+@import url("./responsive/breakpoints.css");
+

@@ -1,0 +1,578 @@
+/* ==========================================================================
+   BANTUG UNIVERSITY - Student Class Schedule Stylesheet (css/student-schedule.css)
+   Dedicated styles for `pages/student/schedule.html`:
+   - Aligned with Dashboard, Grades, Profile & My Subjects design tokens
+   - Schedule overview header, AY/Semester pills & 4 uniform summary cards
+   - Weekday tabs, search toolbar & conditional overlap notice banner
+   - Chronological Weekly Timetable column board with subtle subject colors
+   - Schedule overlap / conflict indicators & Class Details modal
+   - Daily Schedule View with Prev/Today/Next controls
+   - Connected Enrolled Subjects Reference Table
+   - Responsive breakpoints for Desktop, Laptop, Tablet & Mobile
+   Shared cards, tables, buttons, badges, and stats come from css/components.css.
+   ========================================================================== */
+
+#section-schedule #scheduleContainer {
+  min-width: 0;
+  max-width: 100%;
+}
+
+/* Overview Header & Pills */
+.schedule-overview-header {
+  gap: 16px;
+}
+
+#section-schedule .section-header-info {
+  flex: 1 1 320px;
+  min-width: 0;
+}
+
+.schedule-overview-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.schedule-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  flex-shrink: 0;
+}
+
+.schedule-view-switcher {
+  display: inline-flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.schedule-conflict-banner {
+  margin-bottom: 18px;
+  border-color: var(--danger-600);
+  background: rgba(220, 38, 38, 0.08);
+  color: var(--danger-text, #b91c1c);
+}
+
+/* Four Overview Stat Cards */
+#section-schedule .student-schedule-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+#section-schedule .student-schedule-stats .stat-card {
+  min-width: 0;
+  min-height: 114px;
+  padding: 18px 20px;
+  border: 1px solid var(--border-color);
+  box-shadow: var(--shadow-xs);
+}
+
+#section-schedule .student-schedule-stats .stat-info {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.schedule-stat-day {
+  font-size: 1.35rem;
+}
+
+/* Search & Weekday Tabs Toolbar Card */
+.schedule-toolbar-card {
+  border: 1px solid var(--border-color);
+  box-shadow: var(--shadow-xs);
+  margin-bottom: 20px;
+  padding: 16px 18px;
+}
+
+.schedule-toolbar-row {
+  margin-bottom: 0;
+  gap: 12px;
+  align-items: center;
+}
+
+.schedule-quick-jump-label {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  align-self: center;
+  margin-right: 4px;
+}
+
+.schedule-search-wrap {
+  min-width: 260px;
+  flex: 1 1 260px;
+  max-width: 380px;
+}
+
+.day-tabs {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.day-tab {
+  padding: 7px 14px;
+  border-radius: var(--radius-full);
+  font-size: 0.82rem;
+  font-weight: 600;
+  background: var(--bg-surface-alt);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-color);
+  transition: all var(--transition-fast);
+}
+
+.day-tab:hover {
+  border-color: var(--royal-400);
+  color: var(--royal-600);
+}
+
+.day-tab.active {
+  background: var(--royal-600);
+  color: #ffffff;
+  border-color: var(--royal-600);
+}
+
+.day-tab.today-indicator::after {
+  content: "•";
+  margin-left: 5px;
+  color: #fbbf24;
+}
+
+/* Weekly Timetable Board */
+.schedule-board-card {
+  min-width: 0;
+  border: 1px solid var(--border-color);
+  box-shadow: var(--shadow-xs);
+}
+
+.schedule-card-sublabel {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin-top: 3px;
+}
+
+.schedule-board-scroll {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 4px;
+}
+
+.schedule-week-board {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(195px, 1fr));
+  gap: 14px;
+  align-items: start;
+}
+
+.schedule-week-board-6 {
+  grid-template-columns: repeat(6, minmax(185px, 1fr));
+}
+
+.schedule-week-col {
+  min-width: 0;
+  background: var(--bg-surface-alt);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.schedule-week-col.is-today {
+  border: 2px solid var(--royal-600);
+  box-shadow: var(--shadow-sm);
+}
+
+.schedule-week-col-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 12px 14px;
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.schedule-week-col.is-today .schedule-week-col-header {
+  background: var(--royal-50);
+}
+
+.schedule-week-day-title {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.schedule-week-col-body {
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.schedule-col-empty {
+  padding: 20px 10px;
+  text-align: center;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+/* Slot Cards inside Weekly Timetable */
+.schedule-slot-card {
+  width: 100%;
+  text-align: left;
+  padding: 11px 12px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-left: 4px solid var(--royal-600);
+  border-radius: var(--radius-sm);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  transition: transform 0.14s ease, box-shadow 0.14s ease, border-color 0.14s ease;
+}
+
+.schedule-slot-card:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
+  border-color: var(--royal-400);
+}
+
+.schedule-slot-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.schedule-slot-dur {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.schedule-slot-time {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--royal-600);
+  font-variant-numeric: tabular-nums;
+}
+
+.schedule-slot-subject {
+  font-size: 0.86rem;
+  font-weight: 700;
+  color: var(--text-main);
+  line-height: 1.32;
+  overflow-wrap: anywhere;
+}
+
+.schedule-slot-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  overflow-wrap: anywhere;
+}
+
+/* Subtle Per-Subject Color Palette */
+.schedule-tone-0 {
+  border-left-color: #2563eb;
+  background: rgba(37, 99, 235, 0.04);
+}
+.schedule-tone-1 {
+  border-left-color: #0d9488;
+  background: rgba(13, 148, 136, 0.05);
+}
+.schedule-tone-2 {
+  border-left-color: #7c3aed;
+  background: rgba(124, 58, 237, 0.04);
+}
+.schedule-tone-3 {
+  border-left-color: #d97706;
+  background: rgba(217, 119, 6, 0.05);
+}
+.schedule-tone-4 {
+  border-left-color: #059669;
+  background: rgba(5, 150, 105, 0.05);
+}
+.schedule-tone-5 {
+  border-left-color: #4f46e5;
+  background: rgba(79, 70, 229, 0.04);
+}
+.schedule-tone-6 {
+  border-left-color: #db2777;
+  background: rgba(219, 39, 119, 0.04);
+}
+
+/* Overlap / Conflict Highlight */
+.schedule-slot-card.is-conflict,
+.schedule-item-card.is-conflict {
+  border-color: var(--danger-600);
+  border-left-color: var(--danger-600);
+  background: rgba(220, 38, 38, 0.07);
+}
+
+.schedule-row-conflict {
+  background: rgba(220, 38, 38, 0.06);
+}
+
+.schedule-inline-conflict-badge {
+  margin-left: 6px;
+}
+
+/* Daily View & Cards */
+.schedule-day-card {
+  min-width: 0;
+  border: 1px solid var(--border-color);
+  box-shadow: var(--shadow-xs);
+}
+
+.schedule-day-card.is-today {
+  border: 2px solid var(--royal-600);
+}
+
+.schedule-daily-nav {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.schedule-empty-compact {
+  padding: 24px 18px;
+}
+
+.schedule-col-time {
+  width: 210px;
+}
+
+.schedule-col-code {
+  width: 130px;
+}
+
+.schedule-col-instructor {
+  width: 210px;
+}
+
+.schedule-col-room {
+  width: 145px;
+}
+
+.schedule-time-pill-inline {
+  display: inline-block;
+}
+
+.schedule-daily-table-wrap {
+  margin-bottom: 18px;
+}
+
+.schedule-days-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+  gap: 14px;
+}
+
+.schedule-item-card {
+  padding: 14px;
+  border-radius: var(--radius-sm);
+  border-left: 4px solid var(--royal-600);
+  border-top: 1px solid var(--border-color);
+  border-right: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.schedule-item-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.schedule-subject {
+  font-size: 0.94rem;
+  font-weight: 700;
+  color: var(--text-main);
+  overflow-wrap: anywhere;
+}
+
+.schedule-daily-subject {
+  margin-top: 4px;
+}
+
+.schedule-details {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 14px;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.schedule-item-footer {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 6px;
+  border-top: 1px dashed var(--border-color);
+}
+
+/* Class Details Modal */
+.schedule-modal-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.schedule-modal-badges {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.schedule-modal-badges-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.schedule-modal-title {
+  font-size: 1.12rem;
+  margin-bottom: 3px;
+}
+
+.schedule-modal-sub {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+.schedule-modal-meta-grid {
+  padding: 12px 14px;
+  background: var(--bg-surface-alt);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 10px;
+  font-size: 0.86rem;
+}
+
+.schedule-modal-meta-label {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--text-muted);
+  margin-bottom: 2px;
+}
+
+/* Connected Enrolled Subjects Reference Table */
+.schedule-ref-card {
+  margin-top: 22px;
+  min-width: 0;
+  border: 1px solid var(--border-color);
+  box-shadow: var(--shadow-xs);
+}
+
+#section-schedule .table-responsive {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.schedule-ref-sessions-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.schedule-ref-session-row {
+  font-size: 0.82rem;
+}
+
+.schedule-ref-room-badge {
+  margin-left: 6px;
+}
+
+.schedule-ref-empty {
+  text-align: center;
+  padding: 20px;
+  color: var(--text-muted);
+}
+
+/* Responsive Breakpoints */
+@media (max-width: 1280px) {
+  .schedule-week-board {
+    grid-template-columns: repeat(5, minmax(215px, 1fr));
+  }
+}
+
+@media (max-width: 1200px) {
+  #section-schedule .student-schedule-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 992px) {
+  .schedule-ref-table {
+    min-width: 740px;
+  }
+}
+
+@media (max-width: 768px) {
+  .schedule-header-actions,
+  .schedule-view-switcher {
+    width: 100%;
+  }
+
+  .schedule-view-switcher .btn {
+    flex: 1;
+    justify-content: center;
+  }
+
+  .schedule-search-wrap {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  /* Stack Weekly Columns Vertically on Mobile to Prevent Horizontal Overflow */
+  .schedule-week-board,
+  .schedule-week-board-6 {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+
+  .schedule-daily-table-wrap {
+    display: none;
+  }
+
+  .schedule-days-grid {
+    grid-template-columns: 1fr;
+  }
+
+  #section-schedule .student-schedule-stats .stat-card {
+    padding: 14px 16px;
+    min-height: 102px;
+  }
+}
+
+@media (max-width: 520px) {
+  #section-schedule .student-schedule-stats {
+    grid-template-columns: 1fr;
+  }
+}

@@ -1,0 +1,446 @@
+/* ==========================================================================
+   BANTUG UNIVERSITY - Shared Portal Layout Stylesheet (css/layout.css)
+   Main portal layout shell, sidebar positioning & collapse alignment,
+   topbar header positioning, main content area, and footer.
+   ========================================================================== */
+
+/* 1. App Layout Shell & Main Content Area */
+.app-layout {
+  display: flex;
+  min-height: 100vh;
+  width: 100%;
+  overflow-x: clip;
+}
+
+.main-wrapper {
+  flex: 1;
+  margin-left: var(--sidebar-width);
+  max-width: calc(100% - var(--sidebar-width));
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  transition: margin-left var(--transition-normal), max-width var(--transition-normal);
+}
+
+.content-area {
+  flex: 1;
+  min-width: 0;
+  padding: 26px 28px;
+  max-width: 1440px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+.module-section {
+  min-width: 0;
+  width: 100%;
+  animation: fadeIn 220ms ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.app-footer {
+  padding: 18px 28px;
+  border-top: 1px solid var(--border-color);
+  background: var(--bg-surface);
+  color: var(--text-muted);
+  font-size: 0.82rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+/* Shared University Logo Utilities */
+.bu-logo-img {
+  display: block;
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  object-fit: contain;
+}
+
+.sidebar-logo-box {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.sidebar-logo-img {
+  max-height: 40px;
+  max-width: 48px;
+}
+
+.bu-logo-fallback-sm {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%);
+  border: 1.5px solid rgba(255, 255, 255, 0.35);
+  color: #ffffff;
+  font-family: "Poppins", sans-serif;
+  font-weight: 700;
+  font-size: 0.95rem;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+/* 2. Persistent Left Sidebar Positioning & Structure */
+.sidebar {
+  width: var(--sidebar-width);
+  background: linear-gradient(180deg, var(--bg-sidebar) 0%, #111c35 100%);
+  color: var(--text-on-navy);
+  display: flex;
+  flex-direction: column;
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  z-index: 100;
+  transition: width var(--transition-normal), transform var(--transition-normal);
+  box-shadow: 4px 0 20px rgba(15, 23, 42, 0.15);
+  overflow-x: hidden;
+}
+
+.sidebar-header {
+  min-height: var(--topbar-height);
+  padding: 12px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  flex-shrink: 0;
+}
+
+.brand-logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+  color: #ffffff;
+  text-decoration: none;
+  overflow: hidden;
+}
+
+.brand-icon {
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  border-radius: 10px;
+}
+
+.brand-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.brand-title {
+  font-family: "Poppins", sans-serif;
+  font-size: 1.04rem;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+  color: #ffffff;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.brand-subtitle {
+  font-size: 0.7rem;
+  color: #93c5fd;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sidebar-collapse-btn {
+  flex-shrink: 0;
+  color: #94a3b8;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background var(--transition-fast), color var(--transition-fast), transform var(--transition-normal);
+}
+
+.sidebar-collapse-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+}
+
+.sidebar-demo-pill {
+  margin: 14px 16px 6px;
+  padding: 7px 12px;
+  background: rgba(37, 99, 235, 0.18);
+  border: 1px solid rgba(96, 165, 250, 0.28);
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.75rem;
+  color: #bfdbfe;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #38bdf8;
+  box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.25);
+  flex-shrink: 0;
+}
+
+.sidebar-nav {
+  flex: 1;
+  padding: 10px 12px;
+  overflow-y: auto;
+}
+
+.sidebar-footer {
+  padding: 14px 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.semester-card {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.semester-label {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #94a3b8;
+}
+
+.semester-value {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #ffffff;
+  margin-top: 2px;
+}
+
+.semester-sub {
+  font-size: 0.72rem;
+  color: #60a5fa;
+  margin-top: 2px;
+}
+
+/* Desktop Collapsed Sidebar & Content Alignment */
+.app-layout.sidebar-collapsed .sidebar {
+  width: var(--sidebar-collapsed-width);
+}
+
+.app-layout.sidebar-collapsed .sidebar-header {
+  padding: 12px 8px;
+  flex-direction: column;
+  justify-content: center;
+  gap: 8px;
+}
+
+.app-layout.sidebar-collapsed .brand-logo {
+  flex: 0 0 auto;
+  justify-content: center;
+}
+
+.app-layout.sidebar-collapsed .brand-text,
+.app-layout.sidebar-collapsed .demo-pill-text,
+.app-layout.sidebar-collapsed .nav-label,
+.app-layout.sidebar-collapsed .nav-badge,
+.app-layout.sidebar-collapsed .semester-card {
+  display: none;
+}
+
+.app-layout.sidebar-collapsed .sidebar-demo-pill {
+  justify-content: center;
+  margin: 10px 14px 6px;
+  padding: 8px;
+}
+
+.app-layout.sidebar-collapsed .sidebar-footer {
+  padding: 12px;
+}
+
+.app-layout.sidebar-collapsed .btn-sidebar-logout {
+  margin-top: 0;
+  padding: 10px;
+}
+
+.app-layout.sidebar-collapsed .nav-link {
+  justify-content: center;
+  padding: 12px;
+}
+
+.app-layout.sidebar-collapsed .sidebar-collapse-btn svg {
+  transform: rotate(180deg);
+}
+
+.app-layout.sidebar-collapsed .main-wrapper {
+  margin-left: var(--sidebar-collapsed-width);
+  max-width: calc(100% - var(--sidebar-collapsed-width));
+}
+
+/* 3. Sticky Topbar Header Positioning & Structural Alignment */
+.topbar {
+  min-height: var(--topbar-height);
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border-color);
+  padding: 10px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  width: 100%;
+  min-width: 0;
+  position: sticky;
+  top: 0;
+  z-index: 90;
+  box-shadow: var(--shadow-xs);
+}
+
+.topbar-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  flex: 0 1 auto;
+}
+
+.mobile-menu-btn {
+  display: none;
+  flex-shrink: 0;
+}
+
+.page-breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.breadcrumb-root {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  font-weight: 500;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.breadcrumb-sep {
+  color: var(--border-strong);
+  flex-shrink: 0;
+}
+
+.page-title {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--text-main);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.topbar-center {
+  flex: 1 1 200px;
+  min-width: 160px;
+  max-width: 420px;
+}
+
+.topbar-right {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.topbar-date {
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  background: var(--bg-surface-alt);
+  border: 1px solid var(--border-color);
+  padding: 6px 12px;
+  border-radius: var(--radius-full);
+  white-space: nowrap;
+}
+
+.topbar-profile-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 10px 4px 4px;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--border-color);
+  background: var(--bg-surface-alt);
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: all var(--transition-fast);
+}
+
+.topbar-profile-btn:hover {
+  border-color: var(--royal-400);
+  background: var(--royal-50);
+}
+
+.topbar-avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid var(--royal-500);
+  background: var(--royal-100);
+  flex-shrink: 0;
+}
+
+.topbar-user-info {
+  display: flex;
+  flex-direction: column;
+  text-align: left;
+  line-height: 1.2;
+  min-width: 0;
+  max-width: 130px;
+}
+
+.topbar-user-name {
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: var(--text-main);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.topbar-user-meta {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+

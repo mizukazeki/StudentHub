@@ -1,0 +1,532 @@
+/* ==========================================================================
+   BANTUG UNIVERSITY - Student Dashboard Stylesheet (css/student-dashboard.css)
+   Dedicated styles for `pages/student/dashboard.html`:
+   - Aligned with Phase 3 Grades design tokens & card hierarchy
+   - 4 uniform overview stat cards (Subjects, GWA/Grade Avg, Attendance, Tasks)
+   - Balanced two-column dashboard layout with overflow guards (minmax(0, ...))
+   - Chronological class schedule with current ("In Progress") & next ("Up Next") highlight
+   - Academic Performance overview box, standing readout & subject rating bars
+   - Attendance Summary 4-tile breakdown (Rate, Present, Late, Absent)
+   - Assignments quick actions, Subjects table preview & Announcements list
+   - Responsive breakpoints for Desktop, Laptop, Tablet & Mobile
+   Shared hero banner, cards, tables, badges, and stats come from css/components.css.
+   ========================================================================== */
+
+/* Container & Hero Consistency */
+#section-dashboard #dashboardContainer {
+  min-width: 0;
+  max-width: 100%;
+}
+
+#section-dashboard .student-dashboard-hero {
+  margin-bottom: 20px;
+}
+
+/* Four Overview Summary Cards */
+#section-dashboard .student-dashboard-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+  margin-bottom: 22px;
+}
+
+#section-dashboard .student-dashboard-stats .stat-card {
+  min-width: 0;
+  min-height: 118px;
+  padding: 18px 20px;
+  border: 1px solid var(--border-color);
+  box-shadow: var(--shadow-xs);
+  transition: transform 0.16s ease, box-shadow 0.16s ease, border-color 0.16s ease;
+}
+
+#section-dashboard .student-dashboard-stats .stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-sm);
+  border-color: var(--royal-400);
+}
+
+#section-dashboard .student-dashboard-stats .stat-info {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+#section-dashboard .student-dashboard-stats .stat-value {
+  font-variant-numeric: tabular-nums;
+}
+
+.dash-grade-empty-value {
+  font-size: 1.08rem !important;
+  line-height: 1.3;
+  color: var(--text-secondary);
+}
+
+/* Two-Column Dashboard Content Grid */
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.38fr) minmax(300px, 1fr);
+  gap: 20px;
+  align-items: start;
+}
+
+.dashboard-col {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  min-width: 0;
+}
+
+#section-dashboard .dash-card {
+  min-width: 0;
+  border: 1px solid var(--border-color);
+  box-shadow: var(--shadow-xs);
+}
+
+#section-dashboard .dash-card .card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.dash-card-title-group {
+  min-width: 0;
+  flex: 1 1 220px;
+}
+
+.dash-card-title-group .card-title {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.dash-card-title-group .card-subtitle {
+  margin-top: 3px;
+  font-size: 0.79rem;
+  color: var(--text-muted);
+}
+
+/* Generic Dashboard List Items */
+.dash-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.dash-list-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  background: var(--bg-surface-alt);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  transition: border-color 0.16s ease, background-color 0.16s ease, box-shadow 0.16s ease;
+}
+
+.dash-list-item:hover {
+  border-color: var(--royal-400);
+}
+
+.dash-item-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.dash-item-left > div {
+  min-width: 0;
+}
+
+.time-pill {
+  background: var(--bg-active);
+  color: var(--royal-600);
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 0.77rem;
+  font-weight: 700;
+  white-space: nowrap;
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.dash-item-title {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-main);
+  overflow-wrap: anywhere;
+}
+
+.dash-item-sub {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  margin-top: 2px;
+  overflow-wrap: anywhere;
+}
+
+/* Today's Class Highlighting (Current / Up Next) */
+.dash-schedule-badges {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.dash-list-item.is-current-class {
+  background: rgba(16, 185, 129, 0.08);
+  border-color: var(--success-text, #15803d);
+  border-left: 4px solid var(--success-text, #15803d);
+  box-shadow: var(--shadow-xs);
+}
+
+.dash-list-item.is-current-class .time-pill {
+  background: rgba(16, 185, 129, 0.16);
+  color: var(--success-text, #15803d);
+}
+
+.dash-list-item.is-next-class {
+  background: var(--royal-50);
+  border-color: var(--royal-400);
+  border-left: 4px solid var(--royal-600);
+  box-shadow: var(--shadow-xs);
+}
+
+/* Empty Boxes */
+.dash-empty-box {
+  padding: 22px 16px;
+}
+
+.dash-empty-box-compact {
+  padding: 18px 14px;
+}
+
+/* My Subjects Table Preview */
+#section-dashboard .table-responsive {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+#section-dashboard .data-table {
+  width: 100%;
+  font-size: 0.84rem;
+}
+
+.dash-schedule-summary-cell {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+}
+
+.dash-subjects-footer {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-color);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.dash-subjects-footer-meta {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+}
+
+.dash-subjects-footer-links {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+/* Upcoming Assignments Quick Actions */
+.dash-task-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+/* Academic Performance Overview Card (Aligned with Grades Card) */
+.dash-perf-box {
+  padding: 16px 14px;
+  margin-bottom: 14px;
+  border-radius: var(--radius-sm);
+  background: var(--royal-50);
+  border: 1px solid var(--royal-400);
+  text-align: center;
+}
+
+.dash-perf-term {
+  font-size: 0.74rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--text-secondary);
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.dash-perf-score {
+  margin-top: 6px;
+  font-family: "Poppins", sans-serif;
+  font-size: 1.9rem;
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--royal-600);
+  font-variant-numeric: tabular-nums;
+}
+
+.dash-perf-score.dash-perf-score-empty {
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.dash-perf-standing {
+  margin-top: 8px;
+}
+
+.dash-perf-meta-box {
+  width: 100%;
+  margin-bottom: 16px;
+  padding: 8px 14px;
+  background: var(--bg-surface-alt);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  display: flex;
+  flex-direction: column;
+}
+
+.dash-perf-meta-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 10px;
+  padding: 6px 0;
+  font-size: 0.81rem;
+  border-bottom: 1px dashed var(--border-color);
+}
+
+.dash-perf-meta-row:last-child {
+  border-bottom: none;
+}
+
+.dash-perf-meta-row span:first-child {
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.dash-perf-meta-row span:last-child {
+  font-weight: 600;
+  color: var(--text-main);
+  text-align: right;
+  min-width: 0;
+}
+
+.dash-perf-heading {
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  margin-bottom: 10px;
+}
+
+.dash-perf-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.dash-perf-bars .progress-row {
+  margin-bottom: 0;
+}
+
+.dash-perf-bars .progress-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  font-size: 0.8rem;
+}
+
+.dash-perf-bars .progress-meta span:last-child {
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.dash-perf-more-note {
+  margin-top: 4px;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Attendance Summary Grid */
+.dash-att-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.dash-att-tile {
+  padding: 12px 14px;
+  background: var(--bg-surface-alt);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.dash-att-tile-label {
+  font-size: 0.76rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.dash-att-tile-value {
+  font-family: "Poppins", sans-serif;
+  font-size: 1.45rem;
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--text-main);
+  font-variant-numeric: tabular-nums;
+}
+
+.dash-att-tile-rate {
+  background: var(--royal-50);
+  border-color: var(--royal-400);
+}
+
+.dash-att-tile-rate .dash-att-tile-value {
+  color: var(--royal-600);
+}
+
+.dash-att-tile-present .dash-att-tile-value {
+  color: var(--success-text, #15803d);
+}
+
+.dash-att-tile-late .dash-att-tile-value {
+  color: var(--warning-text, #b45309);
+}
+
+.dash-att-tile-absent .dash-att-tile-value {
+  color: var(--danger-text, #b91c1c);
+}
+
+/* Recent Announcements Preview */
+.dash-ann-item {
+  cursor: pointer;
+}
+
+.dash-ann-item:hover {
+  background: var(--bg-hover);
+}
+
+.dash-ann-meta-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 5px;
+}
+
+.dash-ann-date {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.dash-ann-excerpt {
+  line-height: 1.4;
+}
+
+/* Responsive Breakpoints */
+@media (max-width: 1360px) {
+  #section-dashboard .student-dashboard-stats {
+    gap: 14px;
+  }
+
+  .dashboard-grid {
+    grid-template-columns: minmax(0, 1.3fr) minmax(280px, 1fr);
+    gap: 18px;
+  }
+}
+
+@media (max-width: 1200px) {
+  #section-dashboard .student-dashboard-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .dashboard-grid {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+}
+
+@media (max-width: 992px) {
+  #section-dashboard .data-table {
+    min-width: 580px;
+  }
+}
+
+@media (max-width: 768px) {
+  #section-dashboard .student-dashboard-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  #section-dashboard .student-dashboard-stats .stat-card {
+    padding: 14px 16px;
+    min-height: 104px;
+  }
+
+  .dash-list-item {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .dash-item-left {
+    width: 100%;
+    align-items: flex-start;
+  }
+
+  .dash-schedule-badges,
+  .dash-task-actions {
+    width: 100%;
+    justify-content: flex-start;
+    padding-top: 2px;
+  }
+}
+
+@media (max-width: 520px) {
+  #section-dashboard .student-dashboard-stats {
+    grid-template-columns: 1fr;
+  }
+
+  .dash-item-left {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .dash-perf-score {
+    font-size: 1.6rem;
+  }
+
+  .dash-att-tile-value {
+    font-size: 1.25rem;
+  }
+}

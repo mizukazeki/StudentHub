@@ -1,0 +1,93 @@
+/* ==========================================================================
+   BANTUG UNIVERSITY - CSS Variables & Theme Tokens (base/variables.css)
+   ========================================================================== */
+
+:root {
+  /* Color Palette - Light Theme */
+  --navy-950: #0a1122;
+  --navy-900: #0f172a;
+  --navy-800: #1e293b;
+  --navy-700: #1e3a8a;
+  --royal-600: #2563eb;
+  --royal-500: #3b82f6;
+  --royal-400: #60a5fa;
+  --royal-100: #dbeafe;
+  --royal-50: #eff6ff;
+
+  --bg-body: #f1f5f9;
+  --bg-surface: #ffffff;
+  --bg-surface-alt: #f8fafc;
+  --bg-sidebar: #0f172a;
+  --bg-sidebar-hover: rgba(255, 255, 255, 0.08);
+  --bg-sidebar-active: #2563eb;
+
+  --text-main: #0f172a;
+  --text-secondary: #475569;
+  --text-muted: #64748b;
+  --text-on-navy: #f8fafc;
+
+  --border-color: #e2e8f0;
+  --border-strong: #cbd5e1;
+
+  /* Semantic Status Colors */
+  --success-600: #16a34a;
+  --success-100: #dcfce7;
+  --success-text: #15803d;
+
+  --warning-600: #d97706;
+  --warning-100: #fef3c7;
+  --warning-text: #b45309;
+
+  --danger-600: #dc2626;
+  --danger-100: #fee2e2;
+  --danger-text: #b91c1c;
+
+  --info-600: #0284c7;
+  --info-100: #e0f2fe;
+  --info-text: #0369a1;
+
+  /* Layout & Sizing */
+  --sidebar-width: 268px;
+  --sidebar-collapsed-width: 78px;
+  --topbar-height: 70px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-full: 9999px;
+
+  /* Shadows */
+  --shadow-xs: 0 1px 2px rgba(15, 23, 42, 0.04);
+  --shadow-sm: 0 2px 6px rgba(15, 23, 42, 0.06);
+  --shadow-md: 0 8px 20px rgba(15, 23, 42, 0.08);
+  --shadow-lg: 0 20px 32px rgba(15, 23, 42, 0.14);
+
+  /* Transitions */
+  --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-normal: 240ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Dark Theme Overrides */
+[data-theme="dark"] {
+  --bg-body: #0b1120;
+  --bg-surface: #1e293b;
+  --bg-surface-alt: #0f172a;
+  --bg-sidebar: #090d16;
+  --text-main: #f1f5f9;
+  --text-secondary: #cbd5e1;
+  --text-muted: #94a3b8;
+  --border-color: #334155;
+  --border-strong: #475569;
+  --royal-50: rgba(37, 99, 235, 0.15);
+  --royal-100: rgba(37, 99, 235, 0.25);
+  --success-100: rgba(22, 163, 74, 0.2);
+  --success-text: #4ade80;
+  --warning-100: rgba(217, 119, 6, 0.2);
+  --warning-text: #fbbf24;
+  --danger-100: rgba(220, 38, 38, 0.2);
+  --danger-text: #f87171;
+  --info-100: rgba(2, 132, 199, 0.2);
+  --info-text: #38bdf8;
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.35);
+  --shadow-md: 0 10px 24px rgba(0, 0, 0, 0.45);
+}
+
