@@ -1,0 +1,390 @@
+/* ==========================================================================
+   BANTUG UNIVERSITY - Student Grades Stylesheet (css/student-grades.css)
+   Dedicated styles for `pages/student/grades.html` (Read-Only Grade View):
+   - Section header & read-only badge alignment
+   - Grading weights bar & chips
+   - Filter/search toolbar
+   - Two-column desktop layout: Subject Grade Records + Academic Performance
+   - Clean, readable 7-column grades table with scoped scrollable container
+   - Structured Academic Performance Summary card, GWA readout & progress bars
+   - Responsive breakpoints for Desktop, Laptop, Tablet & Mobile
+   Shared cards, tables, badges, and stats come from css/components.css.
+   ========================================================================== */
+
+/* Header & Stat Value Helpers */
+#section-grades .section-header-info {
+  flex: 1 1 320px;
+  min-width: 0;
+}
+
+.grades-readonly-badge {
+  padding: 8px 14px;
+  font-size: 0.82rem;
+}
+
+.grades-stat-empty {
+  font-size: 1.15rem;
+}
+
+/* Filter & Search Controls */
+.grades-toolbar .toolbar-group {
+  gap: 12px;
+}
+
+.grades-filter-select {
+  flex: 1 1 260px;
+  max-width: 360px;
+}
+
+.grades-search-input {
+  flex: 1 1 220px;
+  max-width: 300px;
+}
+
+/* Syllabus Grading Weights Bar */
+.weights-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.weight-chip {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  padding: 6px 12px;
+  border-radius: var(--radius-full);
+  font-size: 0.79rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  box-shadow: var(--shadow-xs);
+}
+
+.weight-chip strong {
+  color: var(--royal-600);
+}
+
+/* Two-Column Main Grades Grid */
+.grades-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(300px, 340px);
+  gap: 20px;
+  align-items: start;
+}
+
+.grades-layout > .card {
+  min-width: 0;
+}
+
+/* Left Panel: Subject Grade Records Table */
+.grades-table-wrap {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+#section-grades .grades-table {
+  width: 100%;
+  font-size: 0.85rem;
+}
+
+#section-grades .grades-table th {
+  white-space: normal;
+  line-height: 1.3;
+  font-size: 0.73rem;
+  padding: 11px 12px;
+  vertical-align: middle;
+}
+
+.grades-th-sub {
+  display: block;
+  font-size: 0.68rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  text-transform: none;
+  letter-spacing: 0;
+  margin-top: 2px;
+}
+
+#section-grades .grades-table td {
+  padding: 13px 12px;
+  vertical-align: middle;
+}
+
+#section-grades .grades-table th:nth-child(1),
+#section-grades .grades-table td:nth-child(1) {
+  white-space: nowrap;
+}
+
+#section-grades .grades-table th:nth-child(2),
+#section-grades .grades-table td:nth-child(2) {
+  white-space: nowrap;
+}
+
+#section-grades .grades-table th:nth-child(3),
+#section-grades .grades-table td:nth-child(3) {
+  min-width: 170px;
+}
+
+#section-grades .grades-col-units {
+  text-align: center;
+  white-space: nowrap;
+  font-weight: 600;
+}
+
+#section-grades .grades-table th:nth-child(5),
+#section-grades .grades-table td:nth-child(5) {
+  min-width: 165px;
+}
+
+#section-grades .grades-col-grade {
+  text-align: right;
+  white-space: nowrap;
+}
+
+#section-grades .grades-table th:nth-child(7),
+#section-grades .grades-table td:nth-child(7) {
+  min-width: 135px;
+}
+
+.grades-empty-cell {
+  text-align: center;
+  padding: 28px 16px;
+  color: var(--text-muted);
+}
+
+.grades-instructor-sub {
+  font-size: 0.76rem;
+  color: var(--text-muted);
+  margin-top: 2px;
+  line-height: 1.35;
+}
+
+.grades-components-cell {
+  font-size: 0.76rem;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
+.grades-not-encoded {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+.grades-score-strong {
+  font-family: "Poppins", sans-serif;
+  font-size: 0.98rem;
+  font-weight: 700;
+  color: var(--text-main);
+  font-variant-numeric: tabular-nums;
+}
+
+.grades-remarks-empty {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+/* Right Panel: Summary Result Box & Academic Performance Summary */
+.calc-result-box {
+  margin-top: 16px;
+  padding: 16px;
+  border-radius: var(--radius-sm);
+  background: var(--royal-50);
+  border: 1px solid var(--royal-400);
+  text-align: center;
+}
+
+.calc-score {
+  font-family: "Poppins", sans-serif;
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--royal-600);
+}
+
+.grades-summary-box {
+  margin-top: 0;
+  margin-bottom: 16px;
+  padding: 16px 14px;
+}
+
+.grades-summary-term {
+  font-size: 0.74rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--text-secondary);
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+#gradesSummaryScore {
+  margin-top: 6px;
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+}
+
+#gradesSummaryScore.grades-summary-score-empty {
+  font-size: 1.22rem;
+  font-weight: 600;
+}
+
+.grades-summary-standing {
+  margin-top: 8px;
+}
+
+.grades-summary-standing .badge {
+  white-space: normal;
+  line-height: 1.35;
+  text-align: center;
+}
+
+.grades-summary-meta {
+  width: 100%;
+  margin-top: 0;
+  margin-bottom: 18px;
+  padding: 10px 14px;
+  border-top: none;
+  background: var(--bg-surface-alt);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.grades-meta-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 10px;
+  padding: 7px 0;
+  font-size: 0.82rem;
+  border-bottom: 1px dashed var(--border-color);
+}
+
+.grades-meta-row:last-child {
+  border-bottom: none;
+}
+
+.grades-meta-row span:first-child {
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.grades-meta-row span:last-child {
+  font-weight: 600;
+  color: var(--text-main);
+  text-align: right;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.grades-perf-heading {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  margin-bottom: 12px;
+}
+
+.grades-perf-list {
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+}
+
+#section-grades .grades-perf-list .progress-row {
+  margin-bottom: 0;
+}
+
+#section-grades .grades-perf-list .progress-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  font-size: 0.81rem;
+}
+
+#section-grades .grades-perf-list .progress-meta span:last-child {
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Responsive Breakpoints */
+@media (max-width: 1360px) {
+  .grades-layout {
+    grid-template-columns: minmax(0, 1fr) minmax(280px, 315px);
+    gap: 18px;
+  }
+
+  #section-grades .grades-table th,
+  #section-grades .grades-table td {
+    padding: 11px 10px;
+  }
+}
+
+@media (max-width: 1200px) {
+  .grades-layout {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+
+  .grades-perf-list {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px 20px;
+  }
+}
+
+@media (max-width: 992px) {
+  #section-grades .grades-table {
+    min-width: 740px;
+  }
+}
+
+@media (max-width: 768px) {
+  .grades-toolbar .toolbar-group {
+    width: 100%;
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .grades-filter-select,
+  .grades-search-input {
+    max-width: 100%;
+    width: 100%;
+    flex: 1 1 auto;
+  }
+
+  .grades-perf-list {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+}
+
+@media (max-width: 480px) {
+  .weights-bar {
+    gap: 8px;
+  }
+
+  .weight-chip {
+    font-size: 0.75rem;
+    padding: 5px 10px;
+  }
+
+  #section-grades .calc-score {
+    font-size: 1.65rem;
+  }
+
+  #gradesSummaryScore.grades-summary-score-empty {
+    font-size: 1.08rem;
+  }
+
+  .grades-summary-meta {
+    padding: 8px 12px;
+  }
+
+  .grades-meta-row {
+    font-size: 0.79rem;
+  }
+}

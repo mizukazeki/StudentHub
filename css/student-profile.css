@@ -1,0 +1,383 @@
+/* ==========================================================================
+   BANTUG UNIVERSITY - Student Profile Stylesheet (css/student-profile.css)
+   Dedicated styles for `pages/student/profile.html`:
+   - Aligned with Phase 3 Grades & Phase 4 Dashboard visual tokens
+   - Prominent Profile Overview card (avatar, name, ID, program/year, section, status)
+   - Two-column structured cards: Personal Information, Academic Information & Contact
+   - Preserved Edit Profile card with Save & Cancel actions and validation states
+   - Responsive breakpoints for Desktop, Laptop, Tablet & Mobile
+   Shared buttons, badges, notices, forms, and cards come from css/components.css.
+   ========================================================================== */
+
+#section-profile #profileContainer {
+  min-width: 0;
+  max-width: 100%;
+}
+
+#section-profile .section-header {
+  gap: 14px;
+}
+
+#section-profile .section-header-info {
+  flex: 1 1 300px;
+  min-width: 0;
+}
+
+#section-profile .section-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+/* Profile Overview Header Card */
+.profile-overview-card {
+  border: 1px solid var(--border-color);
+  border-top: 4px solid var(--royal-600);
+  box-shadow: var(--shadow-sm);
+  margin-bottom: 18px;
+}
+
+.profile-overview-top {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(260px, 1fr);
+  gap: 24px;
+  align-items: center;
+}
+
+.profile-overview-identity {
+  display: flex;
+  align-items: center;
+  gap: 22px;
+  min-width: 0;
+}
+
+.profile-avatar-column {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.profile-avatar-wrapper {
+  position: relative;
+  margin-bottom: 10px;
+}
+
+.profile-avatar-lg {
+  width: 112px;
+  height: 112px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 4px solid var(--royal-500);
+  background: var(--royal-100);
+  box-shadow: var(--shadow-md);
+}
+
+.avatar-upload-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.profile-upload-label {
+  cursor: pointer;
+}
+
+.profile-upload-hint {
+  margin-top: 5px;
+  font-size: 0.72rem;
+  text-align: center;
+}
+
+.profile-identity-details {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.profile-identity-eyebrow {
+  font-size: 0.74rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--royal-600);
+  margin-bottom: 4px;
+}
+
+.profile-card-name {
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: var(--text-main);
+  margin-bottom: 4px;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.profile-card-course {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  margin-bottom: 12px;
+  overflow-wrap: anywhere;
+}
+
+.profile-overview-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.profile-card-id-badge {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Overview Right-Side Quick Summary Box */
+.profile-overview-meta {
+  min-width: 0;
+}
+
+.profile-meta-list {
+  width: 100%;
+  padding: 12px 16px;
+  background: var(--bg-surface-alt);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.profile-meta-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 0.83rem;
+  gap: 12px;
+  padding: 7px 0;
+  border-bottom: 1px dashed var(--border-color);
+}
+
+.profile-meta-row:last-child {
+  border-bottom: none;
+}
+
+.profile-meta-row span:first-child {
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.profile-meta-row span:last-child {
+  font-weight: 600;
+  color: var(--text-main);
+  text-align: right;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.profile-meta-email {
+  word-break: break-word;
+}
+
+.profile-notice-banner {
+  margin-bottom: 20px;
+}
+
+/* Structured Profile Information Cards Grid */
+.profile-sections-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+  align-items: start;
+}
+
+.profile-info-card {
+  min-width: 0;
+  border: 1px solid var(--border-color);
+  box-shadow: var(--shadow-xs);
+}
+
+.profile-info-card-wide {
+  grid-column: 1 / -1;
+}
+
+#section-profile .profile-info-card .card-header,
+#section-profile .profile-edit-card .card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+#section-profile .card-subtitle {
+  margin-top: 3px;
+  font-size: 0.79rem;
+  color: var(--text-muted);
+}
+
+/* Two-Column Field Grid Inside Each Information Card */
+.profile-dl-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.profile-dl-item {
+  min-width: 0;
+  padding: 11px 14px;
+  background: var(--bg-surface-alt);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.profile-dl-item[hidden] {
+  display: none;
+}
+
+.profile-dl-item-full {
+  grid-column: 1 / -1;
+}
+
+.profile-dl-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+
+.profile-dl-value {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-main);
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.profile-dl-mono {
+  font-variant-numeric: tabular-nums;
+}
+
+.profile-dl-break {
+  word-break: break-word;
+}
+
+.profile-dl-bio {
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+/* Edit Profile Card & Form Organization */
+.profile-edit-card {
+  margin-top: 22px;
+  border: 1px solid var(--royal-400);
+  box-shadow: var(--shadow-sm);
+}
+
+.profile-edit-card[hidden] {
+  display: none;
+}
+
+.profile-form-section-title {
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--royal-600);
+  margin: 18px 0 12px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+#profileForm .profile-form-section-title:first-child {
+  margin-top: 4px;
+}
+
+.profile-form-actions {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border-color);
+}
+
+/* Responsive Breakpoints */
+@media (max-width: 1360px) {
+  .profile-overview-top {
+    grid-template-columns: minmax(0, 1.25fr) minmax(240px, 1fr);
+    gap: 18px;
+  }
+}
+
+@media (max-width: 1100px) {
+  .profile-overview-top {
+    grid-template-columns: 1fr;
+    gap: 18px;
+  }
+
+  .profile-sections-grid {
+    grid-template-columns: 1fr;
+    gap: 18px;
+  }
+
+  .profile-info-card-wide {
+    grid-column: auto;
+  }
+}
+
+@media (max-width: 768px) {
+  .profile-overview-identity {
+    flex-direction: column;
+    text-align: center;
+    gap: 14px;
+  }
+
+  .profile-overview-badges {
+    justify-content: center;
+  }
+
+  #section-profile .section-header-actions {
+    width: 100%;
+  }
+
+  #section-profile .section-header-actions .btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .profile-dl-grid,
+  #profileForm .form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .profile-form-actions {
+    flex-direction: column-reverse;
+    align-items: stretch;
+  }
+
+  .profile-form-actions .btn {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+@media (max-width: 480px) {
+  .profile-avatar-lg {
+    width: 96px;
+    height: 96px;
+  }
+
+  .profile-card-name {
+    font-size: 1.18rem;
+  }
+
+  .profile-meta-list {
+    padding: 10px 12px;
+  }
+
+  .profile-meta-row {
+    font-size: 0.8rem;
+  }
+}

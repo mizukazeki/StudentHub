@@ -1,0 +1,307 @@
+/* ==========================================================================
+   BANTUG UNIVERSITY - Student Attendance Stylesheet (css/student-attendance.css)
+   Dedicated styles for `pages/student/attendance.html` (Read-Only Attendance):
+   - Aligned with Dashboard, Grades, Profile, My Subjects & Class Schedule tokens
+   - Overview header with Academic Year, Semester & overall attendance pills
+   - 4 uniform summary cards (Attendance Rate, Present, Late, Absent)
+   - Dedicated Attendance Performance progress & metrics card
+   - Subject attendance breakdown & read-only Attendance History tables
+   - Responsive breakpoints for Desktop, Laptop, Tablet & Mobile
+   Shared cards, tables, badges, stats, progress bars & empty states come from css/components.css.
+   ========================================================================== */
+
+#section-attendance #attendanceContainer {
+  min-width: 0;
+  max-width: 100%;
+}
+
+/* Header & Overview Pills */
+.attendance-overview-header {
+  gap: 16px;
+}
+
+#section-attendance .section-header-info {
+  flex: 1 1 320px;
+  min-width: 0;
+}
+
+.attendance-overview-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.attendance-readonly-badge {
+  padding: 8px 14px;
+  font-size: 0.82rem;
+}
+
+.attendance-notice-banner {
+  margin-bottom: 20px;
+}
+
+/* Four Summary Stat Cards */
+#section-attendance .student-attendance-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+#section-attendance .student-attendance-stats .stat-card {
+  min-width: 0;
+  min-height: 114px;
+  padding: 18px 20px;
+  border: 1px solid var(--border-color);
+  box-shadow: var(--shadow-xs);
+}
+
+#section-attendance .student-attendance-stats .stat-info {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+#section-attendance .student-attendance-stats .stat-value {
+  font-variant-numeric: tabular-nums;
+}
+
+.stat-icon.icon-red {
+  background: rgba(220, 38, 38, 0.12);
+  color: var(--danger-600);
+}
+
+.att-card-present {
+  border-top: 3px solid var(--success-600, #16a34a) !important;
+}
+
+.att-card-late {
+  border-top: 3px solid var(--warning-600, #d97706) !important;
+}
+
+.att-card-absent {
+  border-top: 3px solid var(--danger-600, #dc2626) !important;
+}
+
+.text-present {
+  color: var(--success-text, #15803d);
+}
+
+.text-late {
+  color: var(--warning-text, #b45309);
+}
+
+.text-absent {
+  color: var(--danger-text, #b91c1c);
+}
+
+/* Dedicated Attendance Performance Card */
+.attendance-perf-card {
+  min-width: 0;
+  margin-bottom: 20px;
+  border: 1px solid var(--border-color);
+  box-shadow: var(--shadow-xs);
+}
+
+.attendance-card-subtitle {
+  margin-top: 3px;
+  font-size: 0.79rem;
+  color: var(--text-muted);
+}
+
+.attendance-perf-rate-readout {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.attendance-perf-pct {
+  font-family: "Poppins", sans-serif;
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: var(--royal-600);
+  font-variant-numeric: tabular-nums;
+}
+
+.attendance-perf-progress-wrap {
+  margin-bottom: 16px;
+}
+
+.attendance-perf-progress-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  margin-bottom: 6px;
+  font-size: 0.83rem;
+}
+
+.attendance-progress-track {
+  height: 11px;
+}
+
+.attendance-perf-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.attendance-perf-metric {
+  padding: 11px 14px;
+  background: var(--bg-surface-alt);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.attendance-perf-metric-label {
+  font-size: 0.73rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--text-muted);
+}
+
+.attendance-perf-metric-value {
+  font-family: "Poppins", sans-serif;
+  font-size: 1.28rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Subject Breakdown & History Cards */
+.attendance-summary-card,
+.attendance-history-card {
+  min-width: 0;
+  margin-bottom: 20px;
+  border: 1px solid var(--border-color);
+  box-shadow: var(--shadow-xs);
+}
+
+.attendance-history-card {
+  margin-bottom: 0;
+}
+
+.attendance-instructor-sub {
+  font-size: 0.76rem;
+  color: var(--text-muted);
+}
+
+#section-attendance .table-responsive {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.attendance-subject-table,
+.attendance-history-table {
+  width: 100%;
+  font-size: 0.85rem;
+}
+
+.att-col-date {
+  white-space: nowrap;
+}
+
+.att-col-schedule {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.attendance-empty-state {
+  padding: 30px 18px;
+}
+
+/* Search & Filter Toolbar Card */
+.attendance-toolbar-card {
+  border: 1px solid var(--border-color);
+  box-shadow: var(--shadow-xs);
+  margin-bottom: 20px;
+  padding: 16px 18px;
+}
+
+.attendance-toolbar {
+  margin-bottom: 0;
+}
+
+.attendance-toolbar-group {
+  width: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.attendance-search-input {
+  flex: 1 1 240px;
+  min-width: 200px;
+}
+
+.attendance-filter-subject {
+  flex: 1 1 210px;
+  max-width: 280px;
+}
+
+.attendance-filter-status {
+  flex: 0 1 165px;
+  min-width: 145px;
+}
+
+.attendance-filter-date {
+  flex: 0 1 165px;
+  min-width: 150px;
+}
+
+/* Responsive Breakpoints */
+@media (max-width: 1200px) {
+  #section-attendance .student-attendance-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 992px) {
+  .attendance-perf-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .attendance-subject-table,
+  .attendance-history-table {
+    min-width: 780px;
+  }
+}
+
+@media (max-width: 768px) {
+  .attendance-toolbar-group {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .attendance-search-input,
+  .attendance-filter-subject,
+  .attendance-filter-status,
+  .attendance-filter-date {
+    max-width: 100%;
+    width: 100%;
+    flex: 1 1 auto;
+  }
+
+  #section-attendance .student-attendance-stats .stat-card {
+    padding: 14px 16px;
+    min-height: 102px;
+  }
+}
+
+@media (max-width: 520px) {
+  #section-attendance .student-attendance-stats,
+  .attendance-perf-metrics {
+    grid-template-columns: 1fr;
+  }
+
+  .attendance-perf-pct {
+    font-size: 1.45rem;
+  }
+}

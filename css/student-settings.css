@@ -1,0 +1,182 @@
+/* ==========================================================================
+   BANTUG UNIVERSITY - Settings Page Stylesheet (css/student-settings.css)
+   Dedicated styles for `#section-settings`:
+   - Aligned with Dashboard, Grades, Profile, Subjects, Schedule, Attendance,
+     Tasks, Announcements & Learning Resources
+   - Overview header with role & account pills
+   - Clean 2-column settings card grid with dedicated section cards
+   - Responsive breakpoints for Desktop, Laptop, Tablet & Mobile
+   ========================================================================== */
+
+#section-settings #settingsContainer {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.settings-overview-header {
+  gap: 16px;
+}
+
+#section-settings .section-header-info {
+  flex: 1 1 320px;
+  min-width: 0;
+}
+
+.settings-overview-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+#section-settings .settings-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+}
+
+#section-settings .settings-card {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+#section-settings .settings-card-full {
+  grid-column: 1 / -1;
+}
+
+.settings-card-desc {
+  font-size: 0.84rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin-top: -4px;
+}
+
+#section-settings .setting-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border-color);
+}
+
+#section-settings .setting-item:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+#section-settings .setting-info {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+#section-settings .setting-info h4 {
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+#section-settings .setting-info p {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin-top: 2px;
+  line-height: 1.45;
+}
+
+.settings-account-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  padding: 12px 14px;
+  background: var(--bg-surface-alt);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  margin-bottom: 6px;
+}
+
+.settings-summary-label {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--text-muted);
+  margin-bottom: 2px;
+}
+
+.settings-summary-value {
+  font-size: 0.86rem;
+  font-weight: 600;
+  color: var(--text-main);
+  word-break: break-word;
+}
+
+.settings-session-box {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  padding: 14px;
+  background: var(--bg-surface-alt);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+}
+
+.settings-logo-preview-box {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 14px;
+  background: var(--bg-surface-alt);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+}
+
+.settings-logo-actions,
+.settings-data-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.settings-data-panel {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px;
+  background: var(--bg-surface-alt);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+}
+
+/* Responsive Breakpoints */
+@media (max-width: 1024px) {
+  #section-settings .settings-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .settings-account-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .settings-account-summary,
+  .settings-session-box {
+    grid-template-columns: 1fr;
+  }
+
+  #section-settings .setting-item {
+    align-items: flex-start;
+  }
+
+  .settings-logo-actions .btn,
+  .settings-data-actions .btn,
+  #section-settings .modal-actions .btn {
+    flex: 1 1 auto;
+  }
+}
+

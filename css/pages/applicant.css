@@ -1,0 +1,101 @@
+/* ==========================================================================
+   BANTUG UNIVERSITY - Applicant Portal & Role Launcher Styles
+   (pages/applicant.css)
+   ========================================================================== */
+
+/* Applicant Program Cards Grid */
+.programs-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+  gap: 18px;
+  margin-bottom: 22px;
+}
+
+.program-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-top: 4px solid var(--royal-600);
+  border-radius: var(--radius-md);
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 12px;
+  box-shadow: var(--shadow-xs);
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.program-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+.program-card.featured-program {
+  border-top-color: #f59e0b;
+  background: linear-gradient(180deg, var(--royal-50) 0%, var(--bg-surface) 38%);
+}
+
+/* Application Reference & Status Tracker Card */
+.status-tracker-steps {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin: 20px 0;
+}
+
+.status-step {
+  padding: 14px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-color);
+  background: var(--bg-surface-alt);
+  text-align: center;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.status-step.active-step {
+  border-color: var(--royal-600);
+  background: var(--royal-50);
+  color: var(--royal-600);
+}
+
+.status-step.approved-step {
+  border-color: var(--success-600);
+  background: var(--success-100);
+  color: var(--success-text);
+}
+
+.status-step.rejected-step {
+  border-color: var(--danger-600);
+  background: var(--danger-100);
+  color: var(--danger-text);
+}
+
+/* Role Launcher Cards inside Explore Demo Modal */
+.role-launcher-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 14px;
+}
+
+.role-launcher-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 18px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-color);
+  background: var(--bg-surface-alt);
+  text-align: left;
+  transition: all var(--transition-fast);
+  width: 100%;
+}
+
+.role-launcher-card:hover {
+  border-color: var(--royal-500);
+  background: var(--royal-50);
+  transform: translateX(3px);
+}
+

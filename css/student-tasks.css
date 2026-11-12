@@ -1,0 +1,461 @@
+/* ==========================================================================
+   BANTUG UNIVERSITY - Student Assignments & Task Manager Stylesheet
+   (css/student-tasks.css)
+   Dedicated styles for `pages/student/tasks.html`:
+   - Aligned with Dashboard, Grades, Profile, My Subjects, Schedule & Attendance
+   - Overview header with Academic Year, Semester & task count pills
+   - 5 uniform summary cards (All Tasks, Pending, Submitted, Completed, Overdue)
+   - Status organization tabs & Search/Filter/Sort toolbar
+   - Responsive 2-column assignment card grid & Assignment Details modal
+   ========================================================================== */
+
+#section-tasks #tasksContainer {
+  min-width: 0;
+  max-width: 100%;
+}
+
+/* Header & Overview Pills */
+.tasks-overview-header {
+  gap: 16px;
+}
+
+#section-tasks .section-header-info {
+  flex: 1 1 320px;
+  min-width: 0;
+}
+
+.tasks-overview-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.tasks-account-badge {
+  padding: 8px 14px;
+  font-size: 0.82rem;
+}
+
+.tasks-notice-banner {
+  margin-bottom: 20px;
+}
+
+/* Five Summary Stat Cards */
+#section-tasks .student-tasks-stats {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+#section-tasks .student-tasks-stats .stat-card {
+  min-width: 0;
+  min-height: 112px;
+  padding: 18px 18px;
+  border: 1px solid var(--border-color);
+  box-shadow: var(--shadow-xs);
+  cursor: pointer;
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast),
+    border-color var(--transition-fast);
+}
+
+#section-tasks .student-tasks-stats .stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-sm);
+}
+
+#section-tasks .student-tasks-stats .stat-card.is-active-filter {
+  box-shadow: var(--shadow-md);
+  outline: 2px solid rgba(37, 99, 235, 0.22);
+}
+
+#section-tasks .student-tasks-stats .stat-info {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+#section-tasks .student-tasks-stats .stat-value {
+  font-variant-numeric: tabular-nums;
+}
+
+.task-stat-card-all {
+  border-top: 3px solid var(--royal-600, #2563eb) !important;
+}
+
+.task-stat-card-pending {
+  border-top: 3px solid var(--warning-600, #d97706) !important;
+}
+
+.task-stat-card-submitted {
+  border-top: 3px solid var(--info-600, #0284c7) !important;
+}
+
+.task-stat-card-completed {
+  border-top: 3px solid var(--success-600, #16a34a) !important;
+}
+
+.task-stat-card-overdue {
+  border-top: 3px solid var(--danger-600, #dc2626) !important;
+}
+
+.text-task-pending {
+  color: var(--warning-text, #b45309);
+}
+
+.text-task-submitted {
+  color: var(--royal-600, #2563eb);
+}
+
+.text-task-completed {
+  color: var(--success-text, #15803d);
+}
+
+.text-task-overdue {
+  color: var(--danger-text, #b91c1c);
+}
+
+/* Organization Tabs & Filter Toolbar Card */
+.tasks-toolbar-card {
+  padding: 16px 20px;
+  margin-bottom: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.tasks-tabs-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.tasks-tab-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 13px;
+  border-radius: 999px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-surface-alt);
+  color: var(--text-secondary);
+  font-size: 0.83rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--transition-fast), color var(--transition-fast),
+    border-color var(--transition-fast);
+}
+
+.tasks-tab-btn:hover {
+  border-color: var(--royal-500, #3b82f6);
+  color: var(--text-main);
+}
+
+.tasks-tab-btn.is-active {
+  background: var(--royal-600, #2563eb);
+  border-color: var(--royal-600, #2563eb);
+  color: #ffffff;
+}
+
+.tasks-tab-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.08);
+  font-size: 0.75rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.tasks-tab-btn.is-active .tasks-tab-count {
+  background: rgba(255, 255, 255, 0.22);
+  color: #ffffff;
+}
+
+.tasks-filter-row {
+  display: grid;
+  grid-template-columns: minmax(220px, 1.8fr) minmax(180px, 1.3fr) minmax(150px, 1fr) minmax(165px, 1fr) auto;
+  gap: 12px;
+  align-items: end;
+}
+
+.tasks-filter-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+}
+
+.tasks-filter-label {
+  font-size: 0.76rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.tasks-filter-actions {
+  display: flex;
+  align-items: center;
+}
+
+/* Assignment Cards Grid */
+#section-tasks .tasks-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+
+#section-tasks .task-card {
+  min-width: 0;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 14px;
+  box-shadow: var(--shadow-xs);
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+#section-tasks .task-card.is-pending {
+  border-left: 4px solid var(--warning-600, #d97706);
+}
+
+#section-tasks .task-card.is-submitted {
+  border-left: 4px solid var(--royal-600, #2563eb);
+}
+
+#section-tasks .task-card.is-completed {
+  border-left: 4px solid var(--success-600, #16a34a);
+  opacity: 0.88;
+}
+
+#section-tasks .task-card.is-overdue {
+  border-left: 4px solid var(--danger-600, #dc2626);
+}
+
+.task-card-header-badges {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+
+.task-subject-cluster {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.task-subject-code-pill {
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.task-subject-name-text {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--royal-600, #2563eb);
+  min-width: 0;
+  word-break: break-word;
+}
+
+.task-instructor-line {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin-top: 3px;
+}
+
+.task-meta-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 18px;
+  margin-top: 12px;
+  padding: 10px 12px;
+  background: var(--bg-surface-alt);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.task-meta-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.task-deadline-urgency {
+  font-weight: 700;
+  font-size: 0.76rem;
+}
+
+.task-deadline-urgency.is-overdue {
+  color: var(--danger-text, #b91c1c);
+}
+
+.task-deadline-urgency.is-soon {
+  color: var(--warning-text, #b45309);
+}
+
+.task-deadline-urgency.is-normal {
+  color: var(--text-muted);
+}
+
+.task-submission-preview {
+  margin-top: 12px;
+  padding: 10px 12px;
+  background: var(--bg-surface-alt);
+  border-left: 3px solid var(--royal-600, #2563eb);
+  border-radius: 6px;
+  font-size: 0.8rem;
+}
+
+.task-submission-preview-title {
+  font-weight: 600;
+  color: var(--text-main);
+  margin-bottom: 3px;
+}
+
+.task-submission-preview-body {
+  color: var(--text-secondary);
+  word-break: break-word;
+}
+
+#section-tasks .task-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-color);
+}
+
+#section-tasks .task-footer .table-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* Assignment Details Modal */
+.task-detail-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.task-detail-meta-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 16px;
+  padding: 14px;
+  background: var(--bg-surface-alt);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  margin-bottom: 14px;
+  font-size: 0.84rem;
+}
+
+.task-detail-meta-label {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--text-muted);
+  margin-bottom: 2px;
+}
+
+.task-detail-instructions {
+  padding: 14px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface);
+  margin-bottom: 14px;
+  font-size: 0.88rem;
+  color: var(--text-secondary);
+  line-height: 1.55;
+}
+
+.task-detail-resources {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.task-detail-resource-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface-alt);
+  font-size: 0.82rem;
+}
+
+/* Responsive Breakpoints */
+@media (max-width: 1280px) {
+  #section-tasks .student-tasks-stats {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .tasks-filter-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 992px) {
+  #section-tasks .tasks-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  #section-tasks .student-tasks-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .tasks-filter-row {
+    grid-template-columns: 1fr;
+  }
+
+  .task-detail-meta-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 520px) {
+  #section-tasks .student-tasks-stats {
+    grid-template-columns: 1fr;
+  }
+
+  #section-tasks .task-footer .table-actions {
+    width: 100%;
+  }
+
+  #section-tasks .task-footer .table-actions .btn {
+    flex: 1 1 auto;
+  }
+}
+

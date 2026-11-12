@@ -1,0 +1,363 @@
+/* ==========================================================================
+   BANTUG UNIVERSITY - Student Announcements Stylesheet
+   (css/student-announcements.css)
+   Dedicated styles for `pages/student/announcements.html`:
+   - Aligned with Dashboard, Grades, Profile, Subjects, Schedule, Attendance & Tasks
+   - Overview header with Total, Unread & Latest Date pills
+   - 3 uniform summary cards
+   - Category tabs & Search/Filter/Sort toolbar
+   - Highlighted Important Notices & Unread bulletins without distracting animations
+   - Responsive breakpoints for Desktop, Laptop, Tablet & Mobile
+   ========================================================================== */
+
+#section-announcements #announcementsContainer {
+  min-width: 0;
+  max-width: 100%;
+}
+
+/* Header & Overview Pills */
+.announcements-overview-header {
+  gap: 16px;
+}
+
+#section-announcements .section-header-info {
+  flex: 1 1 320px;
+  min-width: 0;
+}
+
+.announcements-overview-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.announcements-all-read-badge {
+  padding: 8px 14px;
+  font-size: 0.82rem;
+}
+
+.announcements-notice-banner {
+  margin-bottom: 20px;
+}
+
+/* Three Summary Stat Cards */
+#section-announcements .student-announcements-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+#section-announcements .student-announcements-stats .stat-card {
+  min-width: 0;
+  min-height: 112px;
+  padding: 18px 20px;
+  border: 1px solid var(--border-color);
+  box-shadow: var(--shadow-xs);
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+#section-announcements .student-announcements-stats .stat-card[role="button"] {
+  cursor: pointer;
+}
+
+#section-announcements .student-announcements-stats .stat-card[role="button"]:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-sm);
+}
+
+#section-announcements .student-announcements-stats .stat-card.is-active-filter {
+  box-shadow: var(--shadow-md);
+  outline: 2px solid rgba(37, 99, 235, 0.22);
+}
+
+#section-announcements .student-announcements-stats .stat-info {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+#section-announcements .student-announcements-stats .stat-value {
+  font-variant-numeric: tabular-nums;
+}
+
+.ann-stat-date-value {
+  font-size: 1.28rem !important;
+  line-height: 1.25;
+}
+
+.ann-stat-card-total {
+  border-top: 3px solid var(--royal-600, #2563eb) !important;
+}
+
+.ann-stat-card-unread {
+  border-top: 3px solid var(--warning-600, #d97706) !important;
+}
+
+.ann-stat-card-latest {
+  border-top: 3px solid var(--success-600, #16a34a) !important;
+}
+
+.text-ann-unread {
+  color: var(--warning-text, #b45309);
+}
+
+/* Category Tabs & Search/Filter/Sort Toolbar */
+.announcements-toolbar-card {
+  padding: 16px 20px;
+  margin-bottom: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.announcements-tabs-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.ann-tab-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 13px;
+  border-radius: 999px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-surface-alt);
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--transition-fast), color var(--transition-fast),
+    border-color var(--transition-fast);
+}
+
+.ann-tab-btn:hover {
+  border-color: var(--royal-500, #3b82f6);
+  color: var(--text-main);
+}
+
+.ann-tab-btn.is-active {
+  background: var(--royal-600, #2563eb);
+  border-color: var(--royal-600, #2563eb);
+  color: #ffffff;
+}
+
+.ann-tab-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 19px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.08);
+  font-size: 0.74rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.ann-tab-btn.is-active .ann-tab-count {
+  background: rgba(255, 255, 255, 0.22);
+  color: #ffffff;
+}
+
+.announcements-filter-row {
+  display: grid;
+  grid-template-columns: minmax(220px, 1.8fr) minmax(170px, 1.1fr) minmax(160px, 1fr) minmax(150px, 0.9fr) auto;
+  gap: 12px;
+  align-items: end;
+}
+
+.announcements-filter-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+}
+
+.announcements-filter-label {
+  font-size: 0.76rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.announcements-filter-actions {
+  display: flex;
+  align-items: center;
+}
+
+/* Announcement Cards */
+#section-announcements .announcements-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+#section-announcements .announcement-card {
+  min-width: 0;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 20px 22px;
+  box-shadow: var(--shadow-xs);
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+#section-announcements .announcement-card:hover {
+  box-shadow: var(--shadow-sm);
+}
+
+#section-announcements .announcement-card.is-unread {
+  border-left: 4px solid var(--royal-600, #2563eb);
+  background: linear-gradient(90deg, rgba(37, 99, 235, 0.05) 0%, var(--bg-surface) 22%);
+}
+
+#section-announcements .announcement-card.is-important {
+  border-left: 4px solid var(--danger-600, #dc2626);
+  background: linear-gradient(90deg, rgba(220, 38, 38, 0.05) 0%, var(--bg-surface) 22%);
+}
+
+#section-announcements .announcement-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+}
+
+.announcement-badges-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+
+.announcement-date-pill {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+#section-announcements .announcement-title {
+  font-size: 1.06rem;
+  font-weight: 700;
+  color: var(--text-main);
+  cursor: pointer;
+  line-height: 1.35;
+}
+
+#section-announcements .announcement-title:hover {
+  color: var(--royal-600, #2563eb);
+}
+
+#section-announcements .announcement-body {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  line-height: 1.62;
+  margin-bottom: 14px;
+  word-break: break-word;
+}
+
+#section-announcements .announcement-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  flex-wrap: wrap;
+  gap: 10px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-color);
+}
+
+#section-announcements .announcement-footer .table-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* Announcement Details Modal */
+.ann-detail-meta-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 16px;
+  padding: 12px 14px;
+  background: var(--bg-surface-alt);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  font-size: 0.84rem;
+}
+
+.ann-detail-meta-label {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--text-muted);
+  margin-bottom: 2px;
+}
+
+.ann-detail-body {
+  padding: 16px;
+  background: var(--bg-surface-alt);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  line-height: 1.7;
+  font-size: 0.94rem;
+  color: var(--text-main);
+  white-space: pre-line;
+  word-break: break-word;
+}
+
+/* Responsive Breakpoints */
+@media (max-width: 1200px) {
+  .announcements-filter-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 900px) {
+  #section-announcements .student-announcements-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 768px) {
+  .announcements-filter-row {
+    grid-template-columns: 1fr;
+  }
+
+  .ann-detail-meta-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 520px) {
+  #section-announcements .student-announcements-stats {
+    grid-template-columns: 1fr;
+  }
+
+  #section-announcements .announcement-card {
+    padding: 16px;
+  }
+
+  #section-announcements .announcement-footer .table-actions {
+    width: 100%;
+  }
+
+  #section-announcements .announcement-footer .table-actions .btn {
+    flex: 1 1 auto;
+  }
+}
+
