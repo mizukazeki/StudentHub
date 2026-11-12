@@ -1,14 +1,16 @@
 /**
  * ============================================================================
- * StudentHub - Module 8: Learning Resources (resources.js)
+ * BANTUG UNIVERSITY - Student Portal System
+ * Module 8: Learning Resources (resources.js)
  * Organizes study materials by Subject and Category, validates resource URLs,
- * supports search & filtering, and provides full CRUD management.
+ * supports search & filtering, and preserves faculty-only CRUD management.
  * ============================================================================
  */
 
 const StudentHubResources = (function () {
   const {
     escapeHtml,
+    formatReadableDate,
     isValidUrl,
     clearFormErrors,
     setFieldError,
@@ -32,6 +34,7 @@ const StudentHubResources = (function () {
   let searchQuery = "";
   let filterCategory = "All";
   let filterSubject = "All";
+  let eventsBound = false;
 
   function getCategoryBadge(cat) {
     if (cat === "Lecture Notes") return "badge-primary";
@@ -39,6 +42,120 @@ const StudentHubResources = (function () {
     if (cat === "Tutorials") return "badge-info";
     if (cat === "Reference Links") return "badge-warning";
     return "badge-neutral";
+  }
+
+  function getResourceTypeMeta(resource) {
+    const cat = (resource && resource.category) || "";
+    if (cat === "Lecture Notes") {
+      return {
+        className: "type-notes",
+        label: resource.fileType || "Lecture Notes",
+        svg: `<svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>`
+      };
+    }
+    if (cat === "Study Materials") {
+      return {
+        className: "type-study",
+        label: resource.fileType || "Study Guide",
+        svg: `<svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>`
+      };
+    }
+    if (cat === "Tutorials") {
+      return {
+        className: "type-tutorial",
+        label: resource.fileType || "Interactive Tutorial",
+        svg: `<svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>`
+      };
+    }
+    if (cat === "Reference Links") {
+      return {
+        className: "type-link",
+        label: resource.fileType || "Web Reference",
+        svg: `<svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>`
+      };
+    }
+    return {
+      className: "type-other",
+      label: resource.fileType || "Resource",
+      svg: `<svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>`
+    };
+  }
+
+  /**
+   * Open Resource Details Modal
+   */
+  function openResourceDetailsModal(resource) {
+    if (!resource) return;
+    const safeUrl = isValidUrl && isValidUrl(resource.url) ? resource.url : "";
+    const subjectCode = String(resource.subject || "").split(" - ")[0] || "SUBJ";
+
+    const optionalMeta = [];
+    if (resource.fileType) {
+      optionalMeta.push(`<span><strong>Type:</strong> ${escapeHtml(resource.fileType)}</span>`);
+    }
+    if (resource.uploadDate) {
+      const dateText = formatReadableDate
+        ? formatReadableDate(resource.uploadDate)
+        : resource.uploadDate;
+      optionalMeta.push(`<span><strong>Added:</strong> ${escapeHtml(dateText)}</span>`);
+    }
+    if (resource.fileSize) {
+      optionalMeta.push(`<span><strong>Size:</strong> ${escapeHtml(resource.fileSize)}</span>`);
+    }
+    if (resource.uploadedBy) {
+      optionalMeta.push(`<span><strong>Uploaded By:</strong> ${escapeHtml(resource.uploadedBy)}</span>`);
+    }
+
+    const html = `
+      <div style="display:flex;flex-direction:column;gap:14px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
+          <span class="badge ${getCategoryBadge(resource.category)}">${escapeHtml(
+      resource.category
+    )}</span>
+          <span class="badge badge-primary">${escapeHtml(subjectCode)}</span>
+        </div>
+
+        <div style="padding:12px 14px;background:var(--bg-surface-alt);border:1px solid var(--border-color);border-radius:var(--radius-sm);font-size:0.84rem;">
+          <div style="color:var(--text-muted);font-size:0.74rem;font-weight:700;text-transform:uppercase;margin-bottom:3px;">Associated Subject</div>
+          <div style="font-weight:600;color:var(--text-main);">${escapeHtml(resource.subject)}</div>
+          ${
+            optionalMeta.length > 0
+              ? `<div style="display:flex;flex-wrap:wrap;gap:12px;margin-top:8px;color:var(--text-muted);font-size:0.78rem;">${optionalMeta.join(
+                  ""
+                )}</div>`
+              : ""
+          }
+        </div>
+
+        <div style="padding:14px;border:1px solid var(--border-color);border-radius:var(--radius-sm);font-size:0.9rem;color:var(--text-secondary);line-height:1.6;">
+          ${escapeHtml(resource.description)}
+        </div>
+
+        ${
+          safeUrl
+            ? `<div style="font-size:0.8rem;color:var(--text-muted);word-break:break-all;"><strong>Verified URL:</strong> ${escapeHtml(
+                safeUrl
+              )}</div>`
+            : ""
+        }
+
+        <div class="modal-actions">
+          <button type="button" class="btn btn-secondary" id="closeResDetailBtn">Close</button>
+          ${
+            safeUrl
+              ? `<a href="${escapeHtml(
+                  safeUrl
+                )}" target="_blank" rel="noopener noreferrer" class="btn btn-primary">Open Resource &nearr;</a>`
+              : ""
+          }
+        </div>
+      </div>
+    `;
+
+    openModal(resource.title, html, (bodyEl) => {
+      const closeBtn = bodyEl.querySelector("#closeResDetailBtn");
+      if (closeBtn) closeBtn.addEventListener("click", closeModal);
+    });
   }
 
   /**
@@ -208,185 +325,28 @@ const StudentHubResources = (function () {
     });
   }
 
-  function render() {
-    const container = document.getElementById("resourcesContainer");
-    if (!container) return;
+  function updateClearFiltersVisibility() {
+    const clearBtn = document.getElementById("resClearFiltersBtn");
+    if (!clearBtn) return;
+    const hasFilter =
+      searchQuery.trim() !== "" || filterCategory !== "All" || filterSubject !== "All";
+    clearBtn.hidden = !hasFilter;
+  }
 
-    const state = StudentHubStorage.getState();
-    const resources = state.resources || [];
-    const isFaculty = getActiveRole() === "faculty";
+  function bindStaticEvents() {
+    if (eventsBound) return;
+    eventsBound = true;
 
-    const allSubjects = Array.from(
-      new Set([...StudentHubStorage.getSubjectList(), ...resources.map((r) => r.subject)])
-    );
-
-    const filtered = resources.filter((r) => {
-      const matchCat = filterCategory === "All" || r.category === filterCategory;
-      const matchSub = filterSubject === "All" || r.subject === filterSubject;
-      const q = searchQuery.trim().toLowerCase();
-      const matchQuery =
-        !q ||
-        r.title.toLowerCase().includes(q) ||
-        r.subject.toLowerCase().includes(q) ||
-        r.category.toLowerCase().includes(q) ||
-        (r.description && r.description.toLowerCase().includes(q));
-      return matchCat && matchSub && matchQuery;
-    });
-
-    container.innerHTML = `
-      <div class="section-header">
-        <div class="section-header-info">
-          <h2>BANTUG UNIVERSITY &mdash; Learning Resources (BSIT 2-2)</h2>
-          <p>Access open-access lecture notes, tutorials, documentation links, and reference materials organized by BSIT 2-2 subject.</p>
-        </div>
-        ${
-          isFaculty
-            ? `<div class="section-header-actions">
-                <button type="button" class="btn btn-primary" id="addResourceBtn">
-                  + Add Resource Link
-                </button>
-              </div>`
-            : `<div class="section-header-actions">
-                <span class="badge badge-info" style="font-size:0.82rem;padding:8px 14px;">Student View &mdash; Curated Course Materials</span>
-              </div>`
-        }
-      </div>
-
-      <div class="notice-banner">
-        <div>
-          <strong>Open Educational Resources Policy:</strong> All sample links point to publicly accessible, copyright-safe educational documentation (MDN, W3C, MIT OpenCourseWare, etc.). ${
-            isFaculty
-              ? "As a faculty member, you can add or update validated study URLs below."
-              : "Browse, search, and open resources published for your BSIT 2-2 subjects."
-          }
-        </div>
-      </div>
-
-      <!-- Search & Filter Toolbar -->
-      <div class="toolbar-row">
-        <div class="toolbar-group">
-          <input
-            type="search"
-            id="resSearchInput"
-            class="form-control"
-            style="max-width:280px;"
-            placeholder="Search resource title, topic, or subject..."
-            value="${escapeHtml(searchQuery)}"
-          />
-
-          <select id="resFilterCategory" class="form-control" style="max-width:210px;" aria-label="Filter by Category">
-            <option value="All" ${filterCategory === "All" ? "selected" : ""}>All Categories (${
-      resources.length
-    })</option>
-            ${CATEGORIES.map(
-              (c) =>
-                `<option value="${c}" ${filterCategory === c ? "selected" : ""}>${c}</option>`
-            ).join("")}
-          </select>
-
-          <select id="resFilterSubject" class="form-control" style="max-width:260px;" aria-label="Filter by Subject">
-            <option value="All" ${filterSubject === "All" ? "selected" : ""}>All Subjects</option>
-            ${allSubjects
-              .map(
-                (s) =>
-                  `<option value="${escapeHtml(s)}" ${
-                    filterSubject === s ? "selected" : ""
-                  }>${escapeHtml(s)}</option>`
-              )
-              .join("")}
-          </select>
-        </div>
-      </div>
-
-      <!-- Resources Grid -->
-      ${
-        filtered.length === 0
-          ? `
-          <div class="card">
-            <div class="empty-state">
-              <h3>No Learning Resources Found</h3>
-              <p>No resources match your current filters.</p>
-              ${
-                isFaculty
-                  ? `<button type="button" class="btn btn-primary" id="emptyAddResBtn">+ Add Learning Resource</button>`
-                  : ""
-              }
-            </div>
-          </div>
-        `
-          : `
-          <div class="resources-grid">
-            ${filtered
-              .map(
-                (r) => `
-              <div class="resource-card">
-                <div>
-                  <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px;">
-                    <span class="badge ${getCategoryBadge(r.category)}">${escapeHtml(
-                  r.category
-                )}</span>
-                    <span style="font-size:0.76rem;color:var(--royal-600);font-weight:600;">${escapeHtml(
-                      r.subject.split(" - ")[0]
-                    )}</span>
-                  </div>
-                  <h3 style="font-size:1rem;margin-bottom:4px;">${escapeHtml(r.title)}</h3>
-                  <div style="font-size:0.78rem;color:var(--text-muted);margin-bottom:8px;">${escapeHtml(
-                    r.subject
-                  )}</div>
-                  <p style="font-size:0.85rem;color:var(--text-secondary);">${escapeHtml(
-                    r.description
-                  )}</p>
-                </div>
-
-                <div class="task-footer">
-                  <a
-                    href="${escapeHtml(r.url)}"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    class="btn btn-sm btn-primary"
-                  >
-                    Open Resource &nearr;
-                  </a>
-                  ${
-                    isFaculty
-                      ? `<div class="table-actions">
-                          <button type="button" class="btn btn-sm btn-secondary edit-res-btn" data-id="${escapeHtml(
-                            r.id
-                          )}">Edit</button>
-                          <button type="button" class="btn btn-sm btn-outline-danger delete-res-btn" data-id="${escapeHtml(
-                            r.id
-                          )}">Delete</button>
-                        </div>`
-                      : `<span class="badge badge-neutral">Verified Link</span>`
-                  }
-                </div>
-              </div>
-            `
-              )
-              .join("")}
-          </div>
-        `
-      }
-    `;
-
-    // Bind Add Buttons
     const addBtn = document.getElementById("addResourceBtn");
-    if (addBtn) addBtn.addEventListener("click", () => openResourceModal(null));
+    if (addBtn) {
+      addBtn.addEventListener("click", () => openResourceModal(null));
+    }
 
-    const emptyAddBtn = document.getElementById("emptyAddResBtn");
-    if (emptyAddBtn) emptyAddBtn.addEventListener("click", () => openResourceModal(null));
-
-    // Bind Search & Filters
     const searchInput = document.getElementById("resSearchInput");
     if (searchInput) {
       searchInput.addEventListener("input", (e) => {
         searchQuery = e.target.value;
         render();
-        const el = document.getElementById("resSearchInput");
-        if (el) {
-          el.focus();
-          el.setSelectionRange(searchQuery.length, searchQuery.length);
-        }
       });
     }
 
@@ -406,8 +366,261 @@ const StudentHubResources = (function () {
       });
     }
 
-    // Bind Edit & Delete
-    container.querySelectorAll(".edit-res-btn").forEach((btn) => {
+    const clearBtn = document.getElementById("resClearFiltersBtn");
+    if (clearBtn) {
+      clearBtn.addEventListener("click", () => {
+        searchQuery = "";
+        filterCategory = "All";
+        filterSubject = "All";
+        if (searchInput) searchInput.value = "";
+        if (catSel) catSel.value = "All";
+        if (subSel) subSel.value = "All";
+        render();
+      });
+    }
+  }
+
+  function render() {
+    const container = document.getElementById("resourcesContainer");
+    const listHost = document.getElementById("resourcesListHost");
+    if (!container || !listHost) return;
+
+    bindStaticEvents();
+
+    const state = StudentHubStorage.getState();
+    const resources = state.resources || [];
+    const isFaculty = getActiveRole() === "faculty";
+
+    const activeCategoriesCount = new Set(
+      resources.map((r) => r.category).filter((c) => CATEGORIES.includes(c))
+    ).size;
+    const connectedSubjectsCount = new Set(
+      resources.map((r) => r.subject).filter(Boolean)
+    ).size;
+
+    // 1. Hydrate Header Role State, Overview Pills & Summary Cards
+    const addBtn = document.getElementById("addResourceBtn");
+    const studentBadge = document.getElementById("resStudentViewBadge");
+    if (addBtn) addBtn.hidden = !isFaculty;
+    if (studentBadge) studentBadge.hidden = isFaculty;
+
+    const policyEl = document.getElementById("resPolicyBannerText");
+    if (policyEl) {
+      policyEl.innerHTML = `<strong>Open Educational Resources Policy:</strong> All sample links point to publicly accessible, copyright-safe educational documentation (MDN, W3C, MIT OpenCourseWare, etc.). ${
+        isFaculty
+          ? "As a faculty member, you can add or update validated study URLs below."
+          : "Browse, search, and open resources published for your subjects."
+      }`;
+    }
+
+    const setElText = (id, val) => {
+      const el = document.getElementById(id);
+      if (el) el.textContent = String(val);
+    };
+    setElText("resOverviewTotalPill", `Resources: ${resources.length}`);
+    setElText("resOverviewCatPill", `Categories: ${activeCategoriesCount}`);
+    setElText("resOverviewSubPill", `Subjects: ${connectedSubjectsCount}`);
+    setElText("resStatTotal", resources.length);
+    setElText("resStatCategories", activeCategoriesCount);
+    setElText("resStatSubjects", connectedSubjectsCount);
+
+    // 2. Hydrate Category Tabs from supported CATEGORIES
+    const tabsHost = document.getElementById("resCategoryTabs");
+    if (tabsHost) {
+      const countByCat = (cat) => resources.filter((r) => r.category === cat).length;
+      const tabItems = [
+        { key: "All", label: "All Categories", count: resources.length },
+        ...CATEGORIES.map((c) => ({ key: c, label: c, count: countByCat(c) }))
+      ];
+
+      tabsHost.innerHTML = tabItems
+        .map(
+          (item) => `
+          <button
+            type="button"
+            class="res-tab-btn ${filterCategory === item.key ? "is-active" : ""}"
+            data-res-cat-tab="${escapeHtml(item.key)}"
+            role="tab"
+            aria-selected="${filterCategory === item.key ? "true" : "false"}"
+          >
+            ${escapeHtml(item.label)} <span class="res-tab-count">${item.count}</span>
+          </button>
+        `
+        )
+        .join("");
+
+      tabsHost.querySelectorAll("[data-res-cat-tab]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          filterCategory = btn.getAttribute("data-res-cat-tab") || "All";
+          render();
+        });
+      });
+    }
+
+    // 3. Populate Filter Dropdowns
+    const allSubjects = Array.from(
+      new Set([...StudentHubStorage.getSubjectList(), ...resources.map((r) => r.subject).filter(Boolean)])
+    );
+
+    const catSel = document.getElementById("resFilterCategory");
+    if (catSel) {
+      catSel.innerHTML = `
+        <option value="All" ${filterCategory === "All" ? "selected" : ""}>All Categories (${
+        resources.length
+      })</option>
+        ${CATEGORIES.map(
+          (c) =>
+            `<option value="${escapeHtml(c)}" ${
+              filterCategory === c ? "selected" : ""
+            }>${escapeHtml(c)}</option>`
+        ).join("")}
+      `;
+    }
+
+    const subSel = document.getElementById("resFilterSubject");
+    if (subSel) {
+      subSel.innerHTML = [
+        `<option value="All">All Subjects</option>`,
+        ...allSubjects.map(
+          (s) =>
+            `<option value="${escapeHtml(s)}" ${
+              filterSubject === s ? "selected" : ""
+            }>${escapeHtml(s)}</option>`
+        )
+      ].join("");
+    }
+
+    updateClearFiltersVisibility();
+
+    // 4. Filter Resources
+    const filtered = resources.filter((r) => {
+      const matchCat = filterCategory === "All" || r.category === filterCategory;
+      const matchSub = filterSubject === "All" || r.subject === filterSubject;
+      const q = searchQuery.trim().toLowerCase();
+      const matchQuery =
+        !q ||
+        (r.title && r.title.toLowerCase().includes(q)) ||
+        (r.subject && r.subject.toLowerCase().includes(q)) ||
+        (r.category && r.category.toLowerCase().includes(q)) ||
+        (r.description && r.description.toLowerCase().includes(q));
+      return matchCat && matchSub && matchQuery;
+    });
+
+    // 5. Render Resource Cards
+    if (filtered.length === 0) {
+      listHost.innerHTML = `
+        <div class="card">
+          <div class="empty-state">
+            <h3>No Learning Resources Found</h3>
+            <p>No resources match your current filters.</p>
+            ${
+              isFaculty
+                ? `<button type="button" class="btn btn-primary" id="emptyAddResBtn">+ Add Learning Resource</button>`
+                : ""
+            }
+          </div>
+        </div>
+      `;
+      const emptyAddBtn = document.getElementById("emptyAddResBtn");
+      if (emptyAddBtn) emptyAddBtn.addEventListener("click", () => openResourceModal(null));
+      return;
+    }
+
+    listHost.innerHTML = `
+      <div class="resources-grid">
+        ${filtered
+          .map((r) => {
+            const typeMeta = getResourceTypeMeta(r);
+            const subjectCode = String(r.subject || "").split(" - ")[0] || "SUBJ";
+            const safeUrl = isValidUrl && isValidUrl(r.url) ? r.url : "";
+
+            const optionalMetaItems = [];
+            if (r.fileType) optionalMetaItems.push(`<span><strong>Type:</strong> ${escapeHtml(r.fileType)}</span>`);
+            if (r.uploadDate) {
+              const dt = formatReadableDate ? formatReadableDate(r.uploadDate) : r.uploadDate;
+              optionalMetaItems.push(`<span><strong>Added:</strong> ${escapeHtml(dt)}</span>`);
+            }
+            if (r.fileSize) optionalMetaItems.push(`<span><strong>Size:</strong> ${escapeHtml(r.fileSize)}</span>`);
+            if (r.uploadedBy) optionalMetaItems.push(`<span><strong>By:</strong> ${escapeHtml(r.uploadedBy)}</span>`);
+
+            return `
+              <article class="resource-card" data-resource-id="${escapeHtml(r.id)}">
+                <div>
+                  <div class="resource-card-top">
+                    <div class="resource-card-type-wrap">
+                      <span class="resource-type-icon ${typeMeta.className}" aria-hidden="true">${
+              typeMeta.svg
+            }</span>
+                      <span class="badge ${getCategoryBadge(r.category)}">${escapeHtml(
+              r.category
+            )}</span>
+                    </div>
+                    <span class="resource-subject-pill">${escapeHtml(subjectCode)}</span>
+                  </div>
+
+                  <h3 class="resource-title">${escapeHtml(r.title)}</h3>
+                  <div class="resource-subject-name">${escapeHtml(r.subject)}</div>
+                  <p class="resource-desc">${escapeHtml(r.description)}</p>
+
+                  ${
+                    optionalMetaItems.length > 0
+                      ? `<div class="resource-meta-row">${optionalMetaItems.join("")}</div>`
+                      : ""
+                  }
+                </div>
+
+                <div class="resource-footer">
+                  <div class="table-actions">
+                    ${
+                      safeUrl
+                        ? `<a
+                            href="${escapeHtml(safeUrl)}"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            class="btn btn-sm btn-primary"
+                          >
+                            Open Resource &nearr;
+                          </a>`
+                        : ""
+                    }
+                    <button
+                      type="button"
+                      class="btn btn-sm btn-secondary view-res-details-btn"
+                      data-id="${escapeHtml(r.id)}"
+                    >
+                      Details
+                    </button>
+                  </div>
+                  ${
+                    isFaculty
+                      ? `<div class="table-actions">
+                          <button type="button" class="btn btn-sm btn-secondary edit-res-btn" data-id="${escapeHtml(
+                            r.id
+                          )}">Edit</button>
+                          <button type="button" class="btn btn-sm btn-outline-danger delete-res-btn" data-id="${escapeHtml(
+                            r.id
+                          )}">Delete</button>
+                        </div>`
+                      : `<span class="badge badge-neutral">Verified Link</span>`
+                  }
+                </div>
+              </article>
+            `;
+          })
+          .join("")}
+      </div>
+    `;
+
+    // 6. Bind Card Action Handlers
+    listHost.querySelectorAll(".view-res-details-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const id = btn.getAttribute("data-id");
+        const res = state.resources.find((r) => r.id === id);
+        if (res) openResourceDetailsModal(res);
+      });
+    });
+
+    listHost.querySelectorAll(".edit-res-btn").forEach((btn) => {
       btn.addEventListener("click", () => {
         const id = btn.getAttribute("data-id");
         const res = state.resources.find((r) => r.id === id);
@@ -415,7 +628,7 @@ const StudentHubResources = (function () {
       });
     });
 
-    container.querySelectorAll(".delete-res-btn").forEach((btn) => {
+    listHost.querySelectorAll(".delete-res-btn").forEach((btn) => {
       btn.addEventListener("click", async () => {
         if (!requireRole("faculty", "Only faculty members can delete learning resources.")) return;
         const id = btn.getAttribute("data-id");
@@ -440,8 +653,7 @@ const StudentHubResources = (function () {
     });
   }
 
-  return { render };
+  return { render, openResourceDetailsModal };
 })();
 
 window.StudentHubResources = StudentHubResources;
-

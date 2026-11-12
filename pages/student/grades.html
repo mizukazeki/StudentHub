@@ -1,0 +1,190 @@
+        <!-- ==================== STUDENT PORTAL: MY GRADES MODULE (READ-ONLY) ==================== -->
+        <section id="section-grades" class="module-section" hidden>
+          <div id="gradesContainer">
+            <div class="section-header">
+              <div class="section-header-info">
+                <h2 id="gradesSectionTitle">BANTUG UNIVERSITY &mdash; My Academic Grades (BSIT 2-2)</h2>
+                <p id="gradesStudentSummary">
+                  Read-only academic grade record. Grades are encoded and updated exclusively by assigned faculty members.
+                </p>
+              </div>
+              <div class="section-header-actions">
+                <span class="badge badge-info grades-readonly-badge">
+                  Read-Only Student Record &bull; Encoded by Faculty
+                </span>
+              </div>
+            </div>
+
+            <div class="notice-banner">
+              <div>
+                <strong>Official Role Permission Policy:</strong> Students have <strong>read-only</strong> access to their grade records. Only authorized <strong>BANTUG UNIVERSITY Faculty</strong> members can enter, edit, or update grades from the Faculty Grade Management module.
+              </div>
+            </div>
+
+            <!-- Summary Stat Cards -->
+            <div class="stats-grid">
+              <div class="stat-card">
+                <div class="stat-info">
+                  <span class="stat-label">Overall Grade Average</span>
+                  <span class="stat-value" id="gradesStatOverall">No grade recorded.</span>
+                  <span class="stat-sub" id="gradesStatOverallSub">Awaiting faculty grade encoding</span>
+                </div>
+                <div class="stat-icon icon-blue">
+                  <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none">
+                    <path d="M22 10v6M2 10l10-5 10 5-10 5z"></path>
+                    <path d="M6 12v5c3 3 9 3 12 0v-5"></path>
+                  </svg>
+                </div>
+              </div>
+
+              <div class="stat-card">
+                <div class="stat-info">
+                  <span class="stat-label">Enrolled Subjects</span>
+                  <span class="stat-value" id="gradesStatSubjects">0 Subjects</span>
+                  <span class="stat-sub" id="gradesStatSubjectsSub">0 Total Units &bull; BSIT 2-2</span>
+                </div>
+                <div class="stat-icon icon-purple">
+                  <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none">
+                    <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+                    <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+                  </svg>
+                </div>
+              </div>
+
+              <div class="stat-card">
+                <div class="stat-info">
+                  <span class="stat-label">Highest Graded Subject</span>
+                  <span class="stat-value" id="gradesStatHighest">No grade recorded.</span>
+                  <span class="stat-sub" id="gradesStatHighestSub">No subject grades recorded yet</span>
+                </div>
+                <div class="stat-icon icon-green">
+                  <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none">
+                    <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline>
+                    <polyline points="17 6 23 6 23 12"></polyline>
+                  </svg>
+                </div>
+              </div>
+
+              <div class="stat-card">
+                <div class="stat-info">
+                  <span class="stat-label">Subjects Graded by Faculty</span>
+                  <span class="stat-value" id="gradesStatGradedCount">0 / 0</span>
+                  <span class="stat-sub" id="gradesStatGradedSub">0 Passing &bull; 0 Pending Faculty Entry</span>
+                </div>
+                <div class="stat-icon icon-amber">
+                  <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none">
+                    <path d="M9 11l3 3L22 4"></path>
+                    <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path>
+                  </svg>
+                </div>
+              </div>
+            </div>
+
+            <!-- Syllabus Grading Weights Reference Bar (Read-Only) -->
+            <div class="weights-bar" id="gradesWeightsBar">
+              <span class="weight-chip">Quizzes: <strong id="weightQuizzes">15%</strong></span>
+              <span class="weight-chip">Assignments: <strong id="weightAssignments">15%</strong></span>
+              <span class="weight-chip">Activities: <strong id="weightActivities">15%</strong></span>
+              <span class="weight-chip">Projects: <strong id="weightProjects">25%</strong></span>
+              <span class="weight-chip">Examinations: <strong id="weightExaminations">30%</strong></span>
+            </div>
+
+            <!-- Filter by Subject & Search Toolbar -->
+            <div class="toolbar-row grades-toolbar">
+              <div class="toolbar-group">
+                <select
+                  id="studentGradeSubjectFilter"
+                  class="form-control grades-filter-select"
+                  aria-label="Filter Grades by Subject"
+                >
+                  <option value="All">All Enrolled Subjects (0)</option>
+                </select>
+
+                <input
+                  type="search"
+                  id="studentGradeSearchInput"
+                  class="form-control grades-search-input"
+                  placeholder="Search subject, code, or instructor..."
+                  aria-label="Search Subject Grades"
+                />
+              </div>
+            </div>
+
+            <!-- Main Grades Layout: Read-Only Subject Table + Academic Performance Summary -->
+            <div class="grades-layout">
+              <!-- Left: Enrolled Subjects Grade Table (Strictly Read-Only) -->
+              <div class="card grades-table-card">
+                <div class="card-header">
+                  <h3 class="card-title" id="gradesTableTitle">BSIT 2-2 Subject Grade Records</h3>
+                  <span class="badge badge-primary" id="gradesShowingBadge">Showing 0 of 0 Subjects</span>
+                </div>
+
+                <div class="table-responsive grades-table-wrap">
+                  <table class="data-table grades-table">
+                    <thead>
+                      <tr>
+                        <th>Subject Code</th>
+                        <th>Course Code</th>
+                        <th>Subject &amp; Instructor</th>
+                        <th class="grades-col-units">Units</th>
+                        <th>Component Breakdown <span class="grades-th-sub">(Q / A / Act / P / Ex)</span></th>
+                        <th class="grades-col-grade">Subject Grade</th>
+                        <th>Equivalent &amp; Remarks</th>
+                      </tr>
+                    </thead>
+                    <tbody id="gradesTableBody"></tbody>
+                  </table>
+                </div>
+              </div>
+
+              <!-- Right: Academic Performance Summary (Read-Only) -->
+              <div class="card grades-summary-card">
+                <div class="card-header">
+                  <h3 class="card-title">Academic Performance Summary</h3>
+                  <span class="badge badge-neutral" id="gradesSummaryGwaBadge">Pending</span>
+                </div>
+
+                <div class="calc-result-box grades-summary-box">
+                  <div class="grades-summary-term" id="gradesSummaryTermLabel">
+                    Cumulative Weighted Average (2nd Sem, AY 2026&ndash;2027)
+                  </div>
+                  <div class="calc-score" id="gradesSummaryScore">No grade recorded.</div>
+                  <div class="grades-summary-standing">
+                    <span class="badge badge-neutral" id="gradesSummaryStandingBadge">
+                      Awaiting Faculty Grade Submission
+                    </span>
+                  </div>
+                </div>
+
+                <div class="profile-meta-list grades-summary-meta">
+                  <div class="profile-meta-row grades-meta-row">
+                    <span>Program &amp; Section</span>
+                    <span id="gradesMetaSection">BSIT 2-2</span>
+                  </div>
+                  <div class="profile-meta-row grades-meta-row">
+                    <span>Credited / Total Units</span>
+                    <span id="gradesMetaUnits">0 / 0 Units</span>
+                  </div>
+                  <div class="profile-meta-row grades-meta-row">
+                    <span>Passing Subjects (&ge;75%)</span>
+                    <span id="gradesMetaPassing">0 of 0 Graded</span>
+                  </div>
+                  <div class="profile-meta-row grades-meta-row">
+                    <span>Highest Subject</span>
+                    <span id="gradesMetaHighest">&mdash;</span>
+                  </div>
+                  <div class="profile-meta-row grades-meta-row">
+                    <span>Lowest Graded Subject</span>
+                    <span id="gradesMetaLowest">&mdash;</span>
+                  </div>
+                </div>
+
+                <h4 class="grades-perf-heading">
+                  Performance by Subject
+                </h4>
+                <div class="grades-perf-list" id="gradesPerformanceBars"></div>
+              </div>
+            </div>
+          </div>
+        </section>
+

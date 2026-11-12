@@ -1,267 +1,97 @@
 /**
  * ============================================================================
  * StudentHub - Module 2: Student Profile (profile.js)
- * View and edit personal student information, upload local profile photo,
- * validate required fields and email format, and persist to localStorage.
+ * Hydrates `pages/student/profile.html`, handles local profile photo uploads,
+ * validates required fields and email format, and persists updates via
+ * StudentHubStorage.
  * ============================================================================
  */
 
 const StudentHubProfile = (function () {
   const {
-    escapeHtml,
     isValidEmail,
     clearFormErrors,
     setFieldError,
     showToast,
-    refreshAll
+    refreshAll,
+    formatReadableDate
   } = window.StudentHubApp;
 
-  function render() {
-    const container = document.getElementById("profileContainer");
-    if (!container) return;
+  let isEditMode = false;
 
-    const state = StudentHubStorage.getState();
-    const p = state.profile;
+  function parseAcademicTerm(termStr) {
+    const raw = String(termStr || "").trim();
+    if (!raw) return { semester: "—", academicYear: "—" };
+    const ayMatch = raw.match(/(AY\s*\d{4}\s*[–-]\s*\d{4}|\d{4}\s*[–-]\s*\d{4})/i);
+    const academicYear = ayMatch ? ayMatch[1].replace(/\s+/g, " ").trim() : "—";
+    let semester = raw;
+    if (ayMatch) {
+      semester = raw
+        .replace(ayMatch[0], "")
+        .replace(/^[,\s•–-]+|[,\s•–-]+$/g, "")
+        .trim();
+    }
+    return {
+      semester: semester || raw,
+      academicYear
+    };
+  }
 
-    container.innerHTML = `
-      <div class="section-header">
-        <div class="section-header-info">
-          <h2>BANTUG UNIVERSITY &mdash; My Student Profile</h2>
-          <p>View and manage your personal academic record, BSIT 2-2 section details, and contact information.</p>
-        </div>
-      </div>
+  function findRosterRecord(state, profile) {
+    const roster = Array.isArray(state && state.sectionRoster) ? state.sectionRoster : [];
+    const studNo = String((profile && profile.studentNumber) || "").trim().toLowerCase();
+    const email = String((profile && profile.email) || "").trim().toLowerCase();
+    return (
+      roster.find(
+        (r) =>
+          (studNo && r.studentNumber && r.studentNumber.toLowerCase() === studNo) ||
+          (email && r.email && r.email.toLowerCase() === email)
+      ) || null
+    );
+  }
 
-      <div class="notice-banner">
-        <div>
-          <strong>BANTUG UNIVERSITY Demonstration Student Record:</strong> This profile contains sample academic data stored locally in your browser via <code>localStorage</code>. Changes you save here immediately update the portal header and dashboard.
-        </div>
-      </div>
+  function setEditMode(open, options = {}) {
+    isEditMode = Boolean(open);
+    const editCard = document.getElementById("profileEditCard");
+    const toggleBtn = document.getElementById("toggleProfileEditBtn");
 
-      <div class="profile-layout">
-        <!-- Left Card: Avatar & Summary -->
-        <div class="card profile-card-left">
-          <div class="profile-avatar-wrapper">
-            <img
-              src="${escapeHtml(p.avatar || "assets/images/default-avatar.svg")}"
-              alt="Profile Avatar"
-              class="profile-avatar-lg"
-              id="profileAvatarPreview"
-            />
-          </div>
-          <h3 style="font-size:1.15rem;margin-bottom:4px;">${escapeHtml(p.fullName)}</h3>
-          <span class="badge badge-primary" style="margin-bottom:8px;">${escapeHtml(p.studentNumber)}</span>
-          <p style="font-size:0.84rem;color:var(--text-secondary);">${escapeHtml(p.course)} &bull; ${escapeHtml(p.yearLevel)}</p>
+    if (editCard) {
+      editCard.hidden = !isEditMode;
+    }
+    if (toggleBtn) {
+      toggleBtn.textContent = isEditMode ? "Close Editor" : "Edit Profile";
+      toggleBtn.setAttribute("aria-expanded", String(isEditMode));
+    }
 
-          <div class="avatar-upload-actions">
-            <label for="avatarFileInput" class="btn btn-sm btn-secondary" style="cursor:pointer;">
-              Upload Photo
-            </label>
-            <input type="file" id="avatarFileInput" accept="image/*" hidden />
-            <button type="button" class="btn btn-sm btn-outline-danger" id="resetAvatarBtn">
-              Default Avatar
-            </button>
-          </div>
-          <span class="form-hint" style="margin-top:6px;">Supports PNG, JPG, SVG (max 1.5MB)</span>
+    if (isEditMode && options.focusField) {
+      if (editCard && typeof editCard.scrollIntoView === "function") {
+        editCard.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      }
+      const firstInput = document.getElementById("profFullName");
+      if (firstInput && typeof firstInput.focus === "function") {
+        firstInput.focus();
+      }
+    }
+  }
 
-          <div class="profile-meta-list">
-            <div class="profile-meta-row">
-              <span>Section</span>
-              <span>${escapeHtml(p.section)}</span>
-            </div>
-            <div class="profile-meta-row">
-              <span>Academic Term</span>
-              <span>${escapeHtml(p.academicTerm || "1st Sem, AY 2026–2027")}</span>
-            </div>
-            <div class="profile-meta-row">
-              <span>Email</span>
-              <span style="word-break:break-all;">${escapeHtml(p.email)}</span>
-            </div>
-            <div class="profile-meta-row">
-              <span>Contact</span>
-              <span>${escapeHtml(p.contactNumber)}</span>
-            </div>
-            <div class="profile-meta-row">
-              <span>Guardian</span>
-              <span>${escapeHtml(p.guardianName || "N/A")}</span>
-            </div>
-          </div>
-        </div>
+  function bindProfileEventsOnce(container) {
+    if (!container || container.dataset.profileEventsBound === "1") return;
+    container.dataset.profileEventsBound = "1";
 
-        <!-- Right Card: Edit Personal Information Form -->
-        <div class="card">
-          <div class="card-header">
-            <h3 class="card-title">Edit Personal & Academic Information</h3>
-            <span class="badge badge-neutral">Required fields marked with *</span>
-          </div>
+    // Handle Edit Profile toggle & section quick-edit buttons
+    const toggleEditBtn = document.getElementById("toggleProfileEditBtn");
+    if (toggleEditBtn) {
+      toggleEditBtn.addEventListener("click", () => {
+        setEditMode(!isEditMode, { focusField: !isEditMode });
+      });
+    }
 
-          <form id="profileForm" novalidate>
-            <div class="form-grid">
-              <div class="form-group">
-                <label class="form-label" for="profStudentNumber">Student Number <span class="req">*</span></label>
-                <input
-                  type="text"
-                  id="profStudentNumber"
-                  name="studentNumber"
-                  class="form-control"
-                  value="${escapeHtml(p.studentNumber)}"
-                  placeholder="e.g. 2024-DEMO-0108"
-                />
-                <div class="field-error" data-error-for="studentNumber"></div>
-              </div>
-
-              <div class="form-group">
-                <label class="form-label" for="profFullName">Full Name <span class="req">*</span></label>
-                <input
-                  type="text"
-                  id="profFullName"
-                  name="fullName"
-                  class="form-control"
-                  value="${escapeHtml(p.fullName)}"
-                  placeholder="Enter your full name"
-                />
-                <div class="field-error" data-error-for="fullName"></div>
-              </div>
-
-              <div class="form-group">
-                <label class="form-label" for="profCourse">Course / Degree Program <span class="req">*</span></label>
-                <input
-                  type="text"
-                  id="profCourse"
-                  name="course"
-                  class="form-control"
-                  value="${escapeHtml(p.course)}"
-                  placeholder="e.g. BS in Computer Science"
-                />
-                <div class="field-error" data-error-for="course"></div>
-              </div>
-
-              <div class="form-group">
-                <label class="form-label" for="profYearLevel">Year Level <span class="req">*</span></label>
-                <select id="profYearLevel" name="yearLevel" class="form-control">
-                  ${StudentHubStorage.VALID_YEAR_LEVELS.map(
-                    (yr) =>
-                      `<option value="${yr}" ${
-                        StudentHubStorage.normalizeYearLevel(p.yearLevel, "Year 2") === yr
-                          ? "selected"
-                          : ""
-                      }>${yr}</option>`
-                  ).join("")}
-                </select>
-                <div class="field-error" data-error-for="yearLevel"></div>
-              </div>
-
-              <div class="form-group">
-                <label class="form-label" for="profSection">Section <span class="req">*</span></label>
-                <input
-                  type="text"
-                  id="profSection"
-                  name="section"
-                  class="form-control"
-                  value="${escapeHtml(p.section)}"
-                  placeholder="e.g. BSCS 3-A"
-                />
-                <div class="field-error" data-error-for="section"></div>
-              </div>
-
-              <div class="form-group">
-                <label class="form-label" for="profAcademicTerm">Academic Term <span class="req">*</span></label>
-                <input
-                  type="text"
-                  id="profAcademicTerm"
-                  name="academicTerm"
-                  class="form-control"
-                  value="${escapeHtml(p.academicTerm || "1st Semester, AY 2026–2027")}"
-                  placeholder="e.g. 1st Semester, AY 2026–2027"
-                />
-                <div class="field-error" data-error-for="academicTerm"></div>
-              </div>
-
-              <div class="form-group">
-                <label class="form-label" for="profEmail">Email Address <span class="req">*</span></label>
-                <input
-                  type="email"
-                  id="profEmail"
-                  name="email"
-                  class="form-control"
-                  value="${escapeHtml(p.email)}"
-                  placeholder="student@university.edu"
-                />
-                <div class="field-error" data-error-for="email"></div>
-              </div>
-
-              <div class="form-group">
-                <label class="form-label" for="profContact">Contact Number <span class="req">*</span></label>
-                <input
-                  type="tel"
-                  id="profContact"
-                  name="contactNumber"
-                  class="form-control"
-                  value="${escapeHtml(p.contactNumber)}"
-                  placeholder="e.g. +63 917 555 0148"
-                />
-                <div class="field-error" data-error-for="contactNumber"></div>
-              </div>
-
-              <div class="form-group full-width">
-                <label class="form-label" for="profAddress">Home / Dormitory Address <span class="req">*</span></label>
-                <input
-                  type="text"
-                  id="profAddress"
-                  name="address"
-                  class="form-control"
-                  value="${escapeHtml(p.address || "")}"
-                  placeholder="Enter complete address"
-                />
-                <div class="field-error" data-error-for="address"></div>
-              </div>
-
-              <div class="form-group">
-                <label class="form-label" for="profGuardianName">Emergency Contact / Guardian Name</label>
-                <input
-                  type="text"
-                  id="profGuardianName"
-                  name="guardianName"
-                  class="form-control"
-                  value="${escapeHtml(p.guardianName || "")}"
-                  placeholder="Guardian's full name"
-                />
-                <div class="field-error" data-error-for="guardianName"></div>
-              </div>
-
-              <div class="form-group">
-                <label class="form-label" for="profGuardianContact">Emergency Contact Number</label>
-                <input
-                  type="tel"
-                  id="profGuardianContact"
-                  name="guardianContact"
-                  class="form-control"
-                  value="${escapeHtml(p.guardianContact || "")}"
-                  placeholder="Emergency phone number"
-                />
-                <div class="field-error" data-error-for="guardianContact"></div>
-              </div>
-
-              <div class="form-group full-width">
-                <label class="form-label" for="profBio">Academic Bio / Goals</label>
-                <textarea
-                  id="profBio"
-                  name="bio"
-                  rows="3"
-                  class="form-control"
-                  placeholder="Brief academic bio or semester goals..."
-                >${escapeHtml(p.bio || "")}</textarea>
-                <div class="field-error" data-error-for="bio"></div>
-              </div>
-            </div>
-
-            <div class="modal-actions">
-              <button type="button" class="btn btn-secondary" id="discardProfileChangesBtn">Discard Unsaved Changes</button>
-              <button type="submit" class="btn btn-primary">Save Profile Information</button>
-            </div>
-          </form>
-        </div>
-      </div>
-    `;
+    container.addEventListener("click", (e) => {
+      const quickEditTrigger = e.target && e.target.closest ? e.target.closest("[data-open-profile-edit]") : null;
+      if (quickEditTrigger) {
+        setEditMode(true, { focusField: true });
+      }
+    });
 
     // Handle local profile picture upload
     const fileInput = document.getElementById("avatarFileInput");
@@ -304,12 +134,13 @@ const StudentHubProfile = (function () {
       });
     }
 
-    // Handle Discard button
+    // Handle Discard / Cancel button
     const discardBtn = document.getElementById("discardProfileChangesBtn");
     if (discardBtn) {
       discardBtn.addEventListener("click", () => {
+        setEditMode(false);
         render();
-        showToast("Unsaved form edits discarded.", "info");
+        showToast("Profile changes cancelled.", "info");
       });
     }
 
@@ -383,6 +214,7 @@ const StudentHubProfile = (function () {
         }
 
         if (!isValid) {
+          setEditMode(true);
           showToast("Please fix the highlighted errors before saving.", "error");
           return;
         }
@@ -393,14 +225,134 @@ const StudentHubProfile = (function () {
           ...updated
         };
         StudentHubStorage.saveState(currState);
+        setEditMode(false);
         refreshAll();
         showToast("Student profile saved successfully!", "success");
       });
     }
   }
 
-  return { render };
+  function setTextById(id, value, fallback = "—") {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const text = value !== undefined && value !== null && String(value).trim() !== ""
+      ? String(value).trim()
+      : fallback;
+    el.textContent = text;
+  }
+
+  function render() {
+    const container = document.getElementById("profileContainer");
+    if (!container) return;
+
+    bindProfileEventsOnce(container);
+
+    const state = StudentHubStorage.getState();
+    const p = state.profile || {};
+    const normalizedYear = StudentHubStorage.normalizeYearLevel(p.yearLevel, "Year 2");
+    const termValue = p.academicTerm || "2nd Semester, AY 2026–2027";
+    const parsedTerm = parseAcademicTerm(termValue);
+    const rosterMatch = findRosterRecord(state, p);
+
+    const rawDob = p.dateOfBirth || (rosterMatch && rosterMatch.dateOfBirth) || "";
+    const formattedDob = rawDob
+      ? typeof formatReadableDate === "function"
+        ? formatReadableDate(rawDob)
+        : rawDob
+      : "Not recorded";
+    const genderValue = p.gender || (rosterMatch && rosterMatch.gender) || "";
+    const accountStatus =
+      p.accountStatus ||
+      p.enrollmentStatus ||
+      p.status ||
+      (rosterMatch && rosterMatch.status) ||
+      "";
+
+    // Hydrate Profile Overview Card
+    const avatarEl = document.getElementById("profileAvatarPreview");
+    if (avatarEl) avatarEl.src = p.avatar || "assets/images/default-avatar.svg";
+
+    setTextById("profCardFullName", p.fullName, "Student");
+    setTextById("profCardStudentNumber", p.studentNumber, "—");
+    setTextById("profCardCourseYear", `${p.course || "—"} • ${normalizedYear}`);
+    setTextById("profOverviewSectionBadge", `Section: ${p.section || "—"}`);
+
+    const statusBadgeEl = document.getElementById("profAccountStatusBadge");
+    if (statusBadgeEl) {
+      if (accountStatus) {
+        statusBadgeEl.hidden = false;
+        statusBadgeEl.textContent = `Status: ${accountStatus}`;
+      } else {
+        statusBadgeEl.hidden = true;
+      }
+    }
+
+    setTextById("profMetaSection", p.section, "—");
+    setTextById("profMetaAcademicTerm", termValue, "—");
+    setTextById("profMetaEmail", p.email, "—");
+    setTextById("profMetaContact", p.contactNumber, "—");
+    setTextById("profMetaGuardian", p.guardianName, "N/A");
+
+    // Hydrate Personal Information Card
+    setTextById("profPersonalFullName", p.fullName, "—");
+    setTextById("profPersonalDob", formattedDob, "Not recorded");
+    const genderRowEl = document.getElementById("profPersonalGenderRow");
+    if (genderRowEl) {
+      genderRowEl.hidden = !genderValue;
+    }
+    setTextById("profPersonalGender", genderValue, "—");
+    setTextById("profPersonalEmail", p.email, "—");
+    setTextById("profPersonalContact", p.contactNumber, "—");
+    setTextById("profPersonalAddress", p.address, "—");
+    setTextById("profPersonalBio", p.bio, "No academic bio added.");
+
+    // Hydrate Academic Information Card
+    setTextById("profAcadStudentNumber", p.studentNumber, "—");
+    setTextById("profAcadProgram", p.course, "—");
+    setTextById("profAcadYearLevel", normalizedYear, "—");
+    setTextById("profAcadSection", p.section, "—");
+    setTextById("profAcadYear", parsedTerm.academicYear, "—");
+    setTextById("profAcadSemester", parsedTerm.semester, "—");
+    setTextById("profAcadStatus", accountStatus, "Not specified");
+    setTextById("profAcadStandingTag", accountStatus || "Student Record");
+
+    // Hydrate Contact Information Card
+    setTextById("profContactEmail", p.email, "—");
+    setTextById("profContactPhone", p.contactNumber, "—");
+    setTextById("profContactAddress", p.address, "—");
+    setTextById("profContactGuardianName", p.guardianName, "N/A");
+    setTextById("profContactGuardianPhone", p.guardianContact, "Not specified");
+
+    // Hydrate Edit Form Inputs & Keep Toggle UI Synchronized
+    const form = document.getElementById("profileForm");
+    if (form) {
+      clearFormErrors(form);
+    }
+
+    const fieldMap = {
+      profStudentNumber: p.studentNumber || "",
+      profFullName: p.fullName || "",
+      profCourse: p.course || "",
+      profYearLevel: normalizedYear,
+      profSection: p.section || "",
+      profAcademicTerm: termValue,
+      profEmail: p.email || "",
+      profContact: p.contactNumber || "",
+      profAddress: p.address || "",
+      profGuardianName: p.guardianName || "",
+      profGuardianContact: p.guardianContact || "",
+      profBio: p.bio || ""
+    };
+
+    Object.entries(fieldMap).forEach(([elId, val]) => {
+      const el = document.getElementById(elId);
+      if (el) el.value = val;
+    });
+
+    setEditMode(isEditMode);
+  }
+
+  return { render, setEditMode, parseAcademicTerm };
 })();
 
 window.StudentHubProfile = StudentHubProfile;
-

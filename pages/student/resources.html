@@ -1,0 +1,122 @@
+        <!-- ==================== STUDENT PORTAL: LEARNING RESOURCES MODULE ==================== -->
+        <section id="section-resources" class="module-section" hidden>
+          <div id="resourcesContainer">
+            <!-- 1. Resources Overview Header -->
+            <div class="section-header resources-overview-header">
+              <div class="section-header-info">
+                <h2 id="resSectionTitle">Learning Resources</h2>
+                <p id="resSectionSubtitle">
+                  Access open-access lecture notes, study materials, tutorials, and verified reference links organized by subject.
+                </p>
+                <div class="resources-overview-pills">
+                  <span class="badge badge-primary" id="resOverviewTotalPill">Resources: 0</span>
+                  <span class="badge badge-info" id="resOverviewCatPill">Categories: 0</span>
+                  <span class="badge badge-neutral" id="resOverviewSubPill">Subjects: 0</span>
+                </div>
+              </div>
+              <div class="section-header-actions resources-header-actions">
+                <button type="button" class="btn btn-primary" id="addResourceBtn" hidden>
+                  + Add Resource Link
+                </button>
+                <span class="badge badge-info resources-student-badge" id="resStudentViewBadge">
+                  Student View &mdash; Curated Course Materials
+                </span>
+              </div>
+            </div>
+
+            <!-- Open Educational Resources Policy -->
+            <div class="notice-banner resources-notice-banner">
+              <div id="resPolicyBannerText">
+                <strong>Open Educational Resources Policy:</strong> All sample links point to publicly accessible, copyright-safe educational documentation (MDN, W3C, MIT OpenCourseWare, etc.). Browse, search, and open resources published for your subjects.
+              </div>
+            </div>
+
+            <!-- 2. Resources Summary Cards -->
+            <div class="stats-grid student-resources-stats">
+              <div class="stat-card res-stat-card-total">
+                <div class="stat-info">
+                  <span class="stat-label">Available Resources</span>
+                  <span class="stat-value" id="resStatTotal">0</span>
+                  <span class="stat-sub">Verified course materials</span>
+                </div>
+                <div class="stat-icon icon-blue">
+                  <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none">
+                    <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+                    <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+                  </svg>
+                </div>
+              </div>
+
+              <div class="stat-card res-stat-card-categories">
+                <div class="stat-info">
+                  <span class="stat-label">Resource Categories</span>
+                  <span class="stat-value" id="resStatCategories">0</span>
+                  <span class="stat-sub" id="resStatCategoriesSub">Active material types</span>
+                </div>
+                <div class="stat-icon icon-purple">
+                  <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none">
+                    <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+                  </svg>
+                </div>
+              </div>
+
+              <div class="stat-card res-stat-card-subjects">
+                <div class="stat-info">
+                  <span class="stat-label">Connected Subjects</span>
+                  <span class="stat-value" id="resStatSubjects">0</span>
+                  <span class="stat-sub">Subjects with study links</span>
+                </div>
+                <div class="stat-icon icon-green">
+                  <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <line x1="2" y1="12" x2="22" y2="12"></line>
+                    <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+                  </svg>
+                </div>
+              </div>
+            </div>
+
+            <!-- 3. Category Tabs & Search/Filter Toolbar -->
+            <div class="card resources-toolbar-card">
+              <div class="resources-tabs-row" id="resCategoryTabs" role="tablist" aria-label="Resource Categories">
+                <!-- Populated dynamically by js/resources.js from supported CATEGORIES -->
+              </div>
+
+              <div class="resources-filter-row">
+                <div class="resources-filter-field resources-filter-search">
+                  <label class="resources-filter-label" for="resSearchInput">Search Resources</label>
+                  <input
+                    type="search"
+                    id="resSearchInput"
+                    class="form-control"
+                    placeholder="Search resource title, topic, or subject..."
+                  />
+                </div>
+
+                <div class="resources-filter-field">
+                  <label class="resources-filter-label" for="resFilterCategory">Category</label>
+                  <select id="resFilterCategory" class="form-control" aria-label="Filter by Category">
+                    <option value="All">All Categories (0)</option>
+                  </select>
+                </div>
+
+                <div class="resources-filter-field">
+                  <label class="resources-filter-label" for="resFilterSubject">Subject</label>
+                  <select id="resFilterSubject" class="form-control" aria-label="Filter by Subject">
+                    <option value="All">All Subjects</option>
+                  </select>
+                </div>
+
+                <div class="resources-filter-actions">
+                  <button type="button" class="btn btn-secondary" id="resClearFiltersBtn" hidden>
+                    Reset Filters
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- 4. Resources Grid Host -->
+            <div id="resourcesListHost"></div>
+          </div>
+        </section>
+
