@@ -1,3 +1,4 @@
+// Subject list rendering, course search, and syllabus modal views.
 /**
  * ============================================================================
  * BANTUG UNIVERSITY - Student Portal System
@@ -33,6 +34,7 @@ const StudentHubSubjects = (function () {
   let selectedSemesterFilter = "All";
   let selectedSortOrder = "default";
   let layoutMode = "cards"; // "cards" | "table"
+  let activeSubjectScope = "enrolled"; // "enrolled" | "catalog"
 
   /**
    * Parse academic term string (e.g. "2nd Semester, AY 2026–2027") into semester & AY
@@ -168,26 +170,23 @@ const StudentHubSubjects = (function () {
       const days = (sub.sessions || []).map((s) => `${s.day} ${s.timeLabel}`).join(" ");
       const categoryLabel = getSubjectCategoryLabel(sub);
       const semesterLabel = getSubjectSemesterLabel(sub, profile);
-
-      // Also support searching by demo faculty aliases for T148 / T150
-      const demoAlias =
-        sub.subjectCode === "T148"
-          ? "somera, fabian fabian somera"
-          : sub.subjectCode === "T150"
-            ? "salvador, francis van francis van salvador"
-            : "";
+      const desc = sub.description || "";
+      const course = sub.course || "";
 
       if (q) {
         const haystack = `${sub.subjectCode} ${sub.courseCode || ""} ${
           sub.subjectName || ""
-        } ${fullName} ${instructor} ${sub.section || ""} ${categoryLabel} ${semesterLabel} ${rooms} ${days} ${demoAlias}`.toLowerCase();
+        } ${fullName} ${instructor} ${sub.section || ""} ${categoryLabel} ${semesterLabel} ${rooms} ${days} ${desc} ${course}`.toLowerCase();
         if (!haystack.includes(q)) {
           return false;
         }
       }
 
       if (selectedDayFilter !== "All") {
-        const meetsOnDay = (sub.sessions || []).some((s) => s.day === selectedDayFilter);
+        const meetsOnDay =
+          (sub.sessions || []).some((s) => s.day === selectedDayFilter) ||
+          sub.day === selectedDayFilter ||
+          (sub.scheduleSummary && sub.scheduleSummary.toLowerCase().includes(selectedDayFilter.slice(0, 3).toLowerCase()));
         if (!meetsOnDay) return false;
       }
 
@@ -246,13 +245,13 @@ const StudentHubSubjects = (function () {
   function openSubjectDetailsModal(subjectId) {
     const state = StudentHubStorage.getState();
     const profile = state.profile || {};
-    const enrolledSubjects = StudentHubStorage.getStudentEnrolledSubjects(
-      profile,
-      state.schedules
-    );
-    const sub = enrolledSubjects.find((s) => s.id === subjectId || s.subjectCode === subjectId);
+    const enrolledSubjects = StudentHubStorage.getStudentEnrolledSubjects(profile);
+    const catalogSubjects = StudentHubStorage.getAllUniversitySubjects();
+    const allAvailable = [...enrolledSubjects, ...catalogSubjects];
+    const sub = allAvailable.find((s) => s.id === subjectId || s.subjectCode === subjectId);
     if (!sub) return;
 
+    const isEnrolled = enrolledSubjects.some((s) => s.subjectCode === sub.subjectCode);
     const fullName = getFullSubjectName(sub);
     const sessions = Array.isArray(sub.sessions) ? sub.sessions : [];
     const categoryLabel = getSubjectCategoryLabel(sub);
@@ -270,18 +269,25 @@ const StudentHubSubjects = (function () {
             sub.subjectCode
           )}</span>
           <div class="subject-modal-badges-right">
+            ${
+              isEnrolled
+                ? `<span class="badge badge-success">Enrolled Subject</span>`
+                : `<span class="badge badge-neutral">University Catalog</span>`
+            }
             <span class="badge badge-neutral">${escapeHtml(categoryLabel)}</span>
-            <span class="badge badge-info">Section: ${escapeHtml(
-              sub.section || profile.section || "BSIT 2-2"
-            )}</span>
+            ${
+              sub.section
+                ? `<span class="badge badge-info">Section: ${escapeHtml(sub.section)}</span>`
+                : ""
+            }
           </div>
         </div>
 
         <div>
           <h3 class="subject-modal-title">${escapeHtml(fullName)}</h3>
           <p class="subject-modal-subtitle">
-            ${escapeHtml(sub.course || profile.course || "")} &bull; ${escapeHtml(
-              sub.yearLevel || profile.yearLevel || "Year 2"
+            ${escapeHtml(sub.course || profile.course || "Bachelor of Science in Information Technology")} &bull; ${escapeHtml(
+              sub.yearLevel || profile.yearLevel || "Curriculum Level"
             )}
           </p>
         </div>
@@ -294,7 +300,12 @@ const StudentHubSubjects = (function () {
                 <p>${escapeHtml(rawDescription)}</p>
               </div>
             `
-            : ""
+            : `
+              <div class="subject-modal-description-box">
+                <span class="subject-modal-meta-label">Subject Description</span>
+                <p>Official course included in the curriculum catalog of BANTUG UNIVERSITY.</p>
+              </div>
+            `
         }
 
         <div class="subject-modal-meta-grid">
@@ -311,17 +322,15 @@ const StudentHubSubjects = (function () {
             <strong>${escapeHtml(sub.instructor || "Not specified")}</strong>
           </div>
           <div>
-            <span class="subject-modal-meta-label">Units &amp; Section</span>
-            <strong>${escapeHtml(Number(sub.units) || 3)} Units &bull; ${escapeHtml(
-              sub.section || profile.section || "BSIT 2-2"
-            )}</strong>
+            <span class="subject-modal-meta-label">Units</span>
+            <strong>${escapeHtml(Number(sub.units) || 3)} Units</strong>
           </div>
           <div>
             <span class="subject-modal-meta-label">Subject Category</span>
             <strong>${escapeHtml(categoryLabel)}</strong>
           </div>
           <div>
-            <span class="subject-modal-meta-label">Semester</span>
+            <span class="subject-modal-meta-label">Academic Term / Semester</span>
             <strong>${escapeHtml(semesterLabel)}</strong>
           </div>
         </div>
@@ -330,7 +339,11 @@ const StudentHubSubjects = (function () {
           <h4 class="subject-modal-schedule-title">Connected Class Schedule &amp; Room Assignments</h4>
           ${
             sessions.length === 0
-              ? `<p class="subject-modal-schedule-empty">Schedule: Not specified &bull; Room: Not specified</p>`
+              ? `<p class="subject-modal-schedule-empty">${
+                  sub.scheduleSummary
+                    ? `Schedule: ${escapeHtml(sub.scheduleSummary)}`
+                    : "Schedule: Per departmental timetable &bull; Room: Assigned per semester"
+                }</p>`
               : `
                 <div class="table-responsive">
                   <table class="data-table">
@@ -443,15 +456,18 @@ const StudentHubSubjects = (function () {
 
     const state = StudentHubStorage.getState();
     const profile = state.profile || {};
-    const enrolledSubjects = StudentHubStorage.getStudentEnrolledSubjects(
-      profile,
-      state.schedules
-    );
+    const isCatalogScope = activeSubjectScope === "catalog";
 
-    // 1. If the student's Course / Year Level / Section has NO configured subjects
-    if (enrolledSubjects.length === 0) {
+    const enrolledSubjects = StudentHubStorage.getStudentEnrolledSubjects(profile);
+    const catalogSubjects = StudentHubStorage.getAllUniversitySubjects();
+    const enrolledCodeSet = new Set(enrolledSubjects.map((s) => s.subjectCode));
+
+    const sourceList = isCatalogScope ? catalogSubjects : enrolledSubjects;
+
+    // 1. If enrolled subjects is empty when on "enrolled" scope
+    if (!isCatalogScope && enrolledSubjects.length === 0) {
       if (countBadge) {
-        countBadge.textContent = "0 Subjects Configured";
+        countBadge.textContent = "0 Enrolled Subjects";
       }
       resultsContainer.innerHTML = `
         <div class="card">
@@ -460,21 +476,15 @@ const StudentHubSubjects = (function () {
               <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
               <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
             </svg>
-            <h3>No Subjects Configured for Section ${escapeHtml(
-              profile.section || "Unspecified"
-            )}</h3>
+            <h3>No Enrolled Subjects</h3>
             <p class="subjects-empty-desc">
-              Your student profile is currently set to <strong>${escapeHtml(
-                profile.course || "Unspecified Program"
-              )}</strong> &bull; <strong>${escapeHtml(
-                profile.yearLevel || "Year 1"
-              )}</strong> &bull; Section <strong>${escapeHtml(
-                profile.section || "Unspecified"
-              )}</strong>. No subject load has been configured for this section yet. Official <strong>BSIT 2-2</strong> subjects are only displayed to students enrolled in <strong>Bachelor of Science in Information Technology &bull; Year 2 &bull; BSIT 2-2</strong>.
+              There are currently no enrolled subjects recorded for your student account (<strong>${escapeHtml(
+                profile.section || "No section assigned"
+              )}</strong>).
             </p>
             <div class="subjects-empty-actions">
-              <button type="button" class="btn btn-primary" id="restoreBsit22SectionBtn">
-                Restore BSIT 2-2 Demo Student Section
+              <button type="button" class="btn btn-primary" id="viewCatalogFromEmptyBtn">
+                Browse General Subject Catalog
               </button>
               <button type="button" class="btn btn-secondary" id="goToStudentProfileBtn">
                 Open My Profile
@@ -484,41 +494,34 @@ const StudentHubSubjects = (function () {
         </div>
       `;
 
-      resultsContainer
-        .querySelector("#restoreBsit22SectionBtn")
-        ?.addEventListener("click", () => {
-          const curr = StudentHubStorage.getState();
-          curr.profile.course = "Bachelor of Science in Information Technology";
-          curr.profile.yearLevel = "Year 2";
-          curr.profile.section = "BSIT 2-2";
-          StudentHubStorage.saveState(curr);
-          refreshAll();
-          showToast("Restored student profile to Year 2 • Section BSIT 2-2.", "success");
-        });
-
+      resultsContainer.querySelector("#viewCatalogFromEmptyBtn")?.addEventListener("click", () => {
+        activeSubjectScope = "catalog";
+        render();
+      });
       resultsContainer.querySelector("#goToStudentProfileBtn")?.addEventListener("click", () => {
         navigateTo("profile");
       });
       return;
     }
 
-    const filtered = sortSubjectsList(filterSubjectsList(enrolledSubjects, profile), selectedSortOrder);
+    const filtered = sortSubjectsList(filterSubjectsList(sourceList, profile), selectedSortOrder);
     if (countBadge) {
+      const scopeLabel = isCatalogScope ? "Catalog Subjects" : "Enrolled Subjects";
       countBadge.textContent =
-        filtered.length === enrolledSubjects.length
-          ? `Showing all ${enrolledSubjects.length} Enrolled Subjects`
-          : `Showing ${filtered.length} of ${enrolledSubjects.length} Enrolled Subjects`;
+        filtered.length === sourceList.length
+          ? `Showing all ${sourceList.length} ${scopeLabel}`
+          : `Showing ${filtered.length} of ${sourceList.length} ${scopeLabel}`;
     }
 
-    // 2. If search/filter returned 0 matches among the student's enrolled subjects
+    // 2. If search/filter returned 0 matches
     if (filtered.length === 0) {
       resultsContainer.innerHTML = `
         <div class="card">
           <div class="empty-state subjects-empty-filtered">
             <h3>No Matching Subjects Found</h3>
-            <p>No enrolled subjects matched your search or filter criteria.</p>
+            <p>No ${isCatalogScope ? "catalog" : "enrolled"} subjects matched your search or filter criteria.</p>
             <button type="button" class="btn btn-secondary btn-sm subjects-empty-reset-btn" id="resetSubjectFiltersEmptyBtn">
-              Reset Search &amp; Filters
+              Clear Search &amp; Filters
             </button>
           </div>
         </div>
@@ -548,6 +551,7 @@ const StudentHubSubjects = (function () {
               const categoryLabel = getSubjectCategoryLabel(sub);
               const unitsVal = Number(sub.units) || 3;
               const semesterLabel = getSubjectSemesterLabel(sub, profile);
+              const isEnrolled = enrolledCodeSet.has(sub.subjectCode);
               return `
                 <article class="card subject-card">
                   <div class="subject-card-body">
@@ -556,6 +560,13 @@ const StudentHubSubjects = (function () {
                         sub.subjectCode
                       )}</span>
                       <div class="subject-card-badges-right">
+                        ${
+                          isCatalogScope
+                            ? isEnrolled
+                              ? `<span class="badge badge-success">Enrolled</span>`
+                              : `<span class="badge badge-neutral">Catalog</span>`
+                            : ""
+                        }
                         <span class="badge ${
                           getSubjectCategoryGroup(sub) === "IT" ? "badge-info" : "badge-neutral"
                         }">${escapeHtml(categoryLabel)}</span>
@@ -573,6 +584,19 @@ const StudentHubSubjects = (function () {
                         isUnspecifiedInst ? "subjects-instructor-unspecified" : ""
                       }">${escapeHtml(instructor)}</span>
                     </div>
+                    ${
+                      sub.description
+                        ? `
+                          <div class="subject-card-desc-snippet" style="font-size:0.8rem;color:var(--text-muted);margin:6px 0;line-height:1.4;">
+                            ${escapeHtml(
+                              sub.description.length > 100
+                                ? sub.description.slice(0, 100) + "..."
+                                : sub.description
+                            )}
+                          </div>
+                        `
+                        : ""
+                    }
                     <div class="subject-card-schedule-group">
                       <div class="subject-card-detail-block">
                         <span class="subject-card-section-label">Class Schedule</span>
@@ -586,10 +610,10 @@ const StudentHubSubjects = (function () {
                   </div>
                   <div class="subject-card-footer">
                     <span class="subject-card-footer-meta">${escapeHtml(
-                      sub.section || profile.section || "BSIT 2-2"
+                      sub.section || profile.section || "General Academic"
                     )} &bull; ${escapeHtml(semesterLabel)}</span>
                     <button type="button" class="btn btn-sm btn-secondary" data-view-subject="${escapeHtml(
-                      sub.id
+                      sub.id || sub.subjectCode
                     )}">
                       View Details
                     </button>
@@ -605,14 +629,18 @@ const StudentHubSubjects = (function () {
         <div class="card subjects-table-card">
           <div class="card-header">
             <h3 class="card-title">
-              <span>Enrolled Subjects &mdash; Section ${escapeHtml(
-                profile.section || "BSIT 2-2"
-              )}</span>
+              <span>${
+                isCatalogScope
+                  ? "General Subject Catalog"
+                  : `Enrolled Subjects &mdash; Section ${escapeHtml(profile.section || "Enrolled")}`
+              }</span>
               <span class="badge badge-primary">${filtered.length} Subject${
                 filtered.length === 1 ? "" : "s"
               }</span>
             </h3>
-            <span class="badge badge-neutral">Read-Only Official Load</span>
+            <span class="badge badge-neutral">${
+              isCatalogScope ? "University Course Catalog" : "Read-Only Official Load"
+            }</span>
           </div>
 
           <div class="table-responsive">
@@ -624,8 +652,7 @@ const StudentHubSubjects = (function () {
                   <th>Category</th>
                   <th>Units</th>
                   <th>Instructor</th>
-                  <th>Class Schedule</th>
-                  <th>Room / Lab</th>
+                  ${isCatalogScope ? "<th>Status</th>" : "<th>Class Schedule</th><th>Room / Lab</th>"}
                   <th>Details</th>
                 </tr>
               </thead>
@@ -637,6 +664,7 @@ const StudentHubSubjects = (function () {
                     const isUnspecifiedInst = instructor.toLowerCase() === "not specified";
                     const categoryLabel = getSubjectCategoryLabel(sub);
                     const unitsVal = Number(sub.units) || 3;
+                    const isEnrolled = enrolledCodeSet.has(sub.subjectCode);
                     return `
                       <tr>
                         <td><span class="badge badge-primary">${escapeHtml(
@@ -644,6 +672,11 @@ const StudentHubSubjects = (function () {
                         )}</span></td>
                         <td>
                           <strong>${escapeHtml(fullName)}</strong>
+                          ${
+                            isCatalogScope && sub.course
+                              ? `<div style="font-size:0.75rem;color:var(--text-muted);">${escapeHtml(sub.course)}</div>`
+                              : ""
+                          }
                         </td>
                         <td><span class="badge badge-neutral">${escapeHtml(
                           categoryLabel
@@ -654,13 +687,20 @@ const StudentHubSubjects = (function () {
                             isUnspecifiedInst ? "subjects-instructor-unspecified" : ""
                           }">${escapeHtml(instructor)}</span>
                         </td>
-                        <td>${renderSubjectMeetingsHtml(sub)}</td>
-                        <td>${renderSubjectRoomsHtml(sub)}</td>
+                        ${
+                          isCatalogScope
+                            ? `<td>${
+                                isEnrolled
+                                  ? `<span class="badge badge-success">Enrolled</span>`
+                                  : `<span class="badge badge-neutral">Catalog</span>`
+                              }</td>`
+                            : `<td>${renderSubjectMeetingsHtml(sub)}</td><td>${renderSubjectRoomsHtml(sub)}</td>`
+                        }
                         <td>
                           <button
                             type="button"
                             class="btn btn-sm btn-secondary"
-                            data-view-subject="${escapeHtml(sub.id)}"
+                            data-view-subject="${escapeHtml(sub.id || sub.subjectCode)}"
                           >
                             Details
                           </button>
@@ -689,6 +729,16 @@ const StudentHubSubjects = (function () {
   function bindSubjectsEventsOnce(container) {
     if (!container || container.dataset.subjectsEventsBound === "1") return;
     container.dataset.subjectsEventsBound = "1";
+
+    document.getElementById("tabMyEnrolledSubjects")?.addEventListener("click", () => {
+      activeSubjectScope = "enrolled";
+      render();
+    });
+
+    document.getElementById("tabGeneralSubjectCatalog")?.addEventListener("click", () => {
+      activeSubjectScope = "catalog";
+      render();
+    });
 
     document.getElementById("btnSubjectsTableLayout")?.addEventListener("click", () => {
       layoutMode = "table";
@@ -787,10 +837,8 @@ const StudentHubSubjects = (function () {
 
     const state = StudentHubStorage.getState();
     const profile = state.profile || {};
-    const enrolledSubjects = StudentHubStorage.getStudentEnrolledSubjects(
-      profile,
-      state.schedules
-    );
+    const enrolledSubjects = StudentHubStorage.getStudentEnrolledSubjects(profile);
+    const catalogSubjects = StudentHubStorage.getAllUniversitySubjects();
     const allSessions = StudentHubStorage.getAllScheduleSessions(enrolledSubjects);
     const totalUnits = enrolledSubjects.reduce((sum, s) => sum + (Number(s.units) || 3), 0);
     const assignedInstructorsCount = enrolledSubjects.filter(
@@ -799,6 +847,27 @@ const StudentHubSubjects = (function () {
     const unspecifiedCount = enrolledSubjects.length - assignedInstructorsCount;
     const termStr = profile.academicTerm || "2nd Semester, AY 2026–2027";
     const parsedTerm = parseAcademicTerm(termStr);
+    const isCatalog = activeSubjectScope === "catalog";
+
+    // Hydrate scope switch buttons
+    const tabEnrolledBtn = document.getElementById("tabMyEnrolledSubjects");
+    const tabCatalogBtn = document.getElementById("tabGeneralSubjectCatalog");
+    if (tabEnrolledBtn) {
+      tabEnrolledBtn.classList.toggle("btn-primary", !isCatalog);
+      tabEnrolledBtn.classList.toggle("btn-secondary", isCatalog);
+    }
+    if (tabCatalogBtn) {
+      tabCatalogBtn.classList.toggle("btn-primary", isCatalog);
+      tabCatalogBtn.classList.toggle("btn-secondary", !isCatalog);
+    }
+
+    // Hydrate Notice Banner
+    const noticeBannerText = document.getElementById("subjectsNoticeBannerText");
+    if (noticeBannerText) {
+      noticeBannerText.innerHTML = isCatalog
+        ? `<strong>General Subject Catalog:</strong> Explore all official courses and subjects offered by BANTUG UNIVERSITY. These represent the general curriculum catalog and are not all enrolled by your current account.`
+        : `<strong>Official Enrolled Subjects (Read-Only):</strong> Subject enrollments, instructors, rooms, and schedules are managed by the university registrar and faculty. Use the filters below to search, organize, or inspect subject details.`;
+    }
 
     // Hydrate Overview Header & Academic Year / Semester Pills
     const titleEl = document.getElementById("subjectsSectionTitle");
@@ -808,18 +877,19 @@ const StudentHubSubjects = (function () {
     const semPillEl = document.getElementById("subjectsSemesterPill");
 
     if (titleEl) {
-      titleEl.innerHTML = `My Subjects &mdash; ${escapeHtml(profile.section || "BSIT 2-2")}`;
+      titleEl.innerHTML = isCatalog
+        ? "General Subject Catalog"
+        : (profile.section ? `My Subjects &mdash; ${escapeHtml(profile.section)}` : "My Subjects");
     }
     if (termSummaryEl) {
-      termSummaryEl.innerHTML = `
-        <strong>Program:</strong> ${escapeHtml(
-          profile.course || "Bachelor of Science in Information Technology"
-        )} &bull;
-        <strong>Year Level:</strong> ${escapeHtml(profile.yearLevel || "Year 2")}
-      `;
+      termSummaryEl.innerHTML = isCatalog
+        ? `Browse curriculum offerings, subject codes, descriptions, and assigned professors across BANTUG UNIVERSITY.`
+        : `<strong>Program:</strong> ${escapeHtml(
+            profile.course || "Bachelor of Science in Information Technology"
+          )} &bull; <strong>Year Level:</strong> ${escapeHtml(profile.yearLevel || "Year 2")}`;
     }
     if (sectionPillEl) {
-      sectionPillEl.textContent = `Section: ${profile.section || "BSIT 2-2"}`;
+      sectionPillEl.textContent = isCatalog ? "Scope: University Catalog" : `Section: ${profile.section || "Enrolled"}`;
     }
     if (ayPillEl) {
       ayPillEl.textContent = `Academic Year: ${parsedTerm.academicYear}`;
@@ -850,26 +920,39 @@ const StudentHubSubjects = (function () {
     const statInstrEl = document.getElementById("subjectsStatInstructors");
     const statInstrSubEl = document.getElementById("subjectsStatInstructorsSub");
 
-    if (statCountEl) statCountEl.textContent = String(enrolledSubjects.length);
-    if (statSectionSubEl) {
-      statSectionSubEl.textContent = `Section ${profile.section || "BSIT 2-2"}`;
-    }
-    if (statUnitsEl) statUnitsEl.textContent = `${totalUnits} Units`;
-    if (statUnitsSubEl) {
-      statUnitsSubEl.textContent = `${profile.yearLevel || "Year 2"} Curriculum Load`;
-    }
-    if (statSessionsEl) statSessionsEl.textContent = `${allSessions.length} Sessions`;
-    if (statSessionsSubEl) {
-      statSessionsSubEl.textContent = `Connected to ${profile.section || "BSIT 2-2"} Timetable`;
-    }
-    if (statInstrEl) {
-      statInstrEl.textContent = `${assignedInstructorsCount} / ${enrolledSubjects.length}`;
-    }
-    if (statInstrSubEl) {
-      statInstrSubEl.textContent =
-        unspecifiedCount > 0
-          ? `${unspecifiedCount} Subject Instructor Not Specified`
-          : "All Instructors Assigned";
+    if (isCatalog) {
+      if (statCountEl) statCountEl.textContent = String(catalogSubjects.length);
+      if (statSectionSubEl) statSectionSubEl.textContent = "University Catalog Courses";
+      const catUnits = catalogSubjects.reduce((sum, s) => sum + (Number(s.units) || 3), 0);
+      if (statUnitsEl) statUnitsEl.textContent = `${catUnits} Units`;
+      if (statUnitsSubEl) statUnitsSubEl.textContent = "Total Catalog Load";
+      if (statSessionsEl) statSessionsEl.textContent = `${catalogSubjects.length} Courses`;
+      if (statSessionsSubEl) statSessionsSubEl.textContent = "Approved Curricula";
+      const catInstructors = catalogSubjects.filter((s) => s.instructor && s.instructor.toLowerCase() !== "not specified").length;
+      if (statInstrEl) statInstrEl.textContent = `${catInstructors} / ${catalogSubjects.length}`;
+      if (statInstrSubEl) statInstrSubEl.textContent = "Catalog Instructors Listed";
+    } else {
+      if (statCountEl) statCountEl.textContent = String(enrolledSubjects.length);
+      if (statSectionSubEl) {
+        statSectionSubEl.textContent = profile.section ? `Section ${profile.section}` : "Enrolled Subjects";
+      }
+      if (statUnitsEl) statUnitsEl.textContent = `${totalUnits} Units`;
+      if (statUnitsSubEl) {
+        statUnitsSubEl.textContent = `${profile.yearLevel || "Year 2"} Curriculum Load`;
+      }
+      if (statSessionsEl) statSessionsEl.textContent = `${allSessions.length} Sessions`;
+      if (statSessionsSubEl) {
+        statSessionsSubEl.textContent = profile.section ? `Connected to ${profile.section} Timetable` : "Connected to Timetable";
+      }
+      if (statInstrEl) {
+        statInstrEl.textContent = `${assignedInstructorsCount} / ${enrolledSubjects.length}`;
+      }
+      if (statInstrSubEl) {
+        statInstrSubEl.textContent =
+          unspecifiedCount > 0
+            ? `${unspecifiedCount} Subject Instructor Not Specified`
+            : "All Instructors Assigned";
+      }
     }
 
     // Sync Toolbar Inputs

@@ -1,3 +1,4 @@
+// Student profile view and personal information display.
 /**
  * ============================================================================
  * StudentHub - Module 2: Student Profile (profile.js)

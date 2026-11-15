@@ -1,3 +1,4 @@
+<!-- Enrolled subjects and course curriculum overview. -->
         <!-- ==================== STUDENT PORTAL: MY SUBJECTS MODULE ==================== -->
         <section id="section-subjects" class="module-section" hidden>
           <div id="subjectsContainer">
@@ -9,12 +10,28 @@
                   View your official enrolled subjects, unit load, assigned instructors, and connected class schedules.
                 </p>
                 <div class="subjects-overview-pills">
-                  <span class="badge badge-primary" id="subjectsSectionPill">Section: BSIT 2-2</span>
+                  <span class="badge badge-primary" id="subjectsSectionPill">Section: &mdash;</span>
                   <span class="badge badge-info" id="subjectsAcademicYearPill">Academic Year: AY 2026&ndash;2027</span>
                   <span class="badge badge-neutral" id="subjectsSemesterPill">Semester: 2nd Semester</span>
                 </div>
               </div>
               <div class="section-header-actions subjects-header-actions">
+                <div class="schedule-view-switcher" role="group" aria-label="Switch Subject Scope">
+                  <button
+                    type="button"
+                    class="btn btn-primary"
+                    id="tabMyEnrolledSubjects"
+                  >
+                    My Enrolled Subjects
+                  </button>
+                  <button
+                    type="button"
+                    class="btn btn-secondary"
+                    id="tabGeneralSubjectCatalog"
+                  >
+                    General Subject Catalog
+                  </button>
+                </div>
                 <div class="schedule-view-switcher" role="group" aria-label="Switch Subject Layout">
                   <button
                     type="button"
@@ -38,19 +55,19 @@
             </div>
 
             <!-- Read-Only Notice -->
-            <div class="notice-banner subjects-notice-banner">
-              <div>
+            <div class="notice-banner subjects-notice-banner" id="subjectsNoticeBanner">
+              <div id="subjectsNoticeBannerText">
                 <strong>Official Enrolled Subjects (Read-Only):</strong> Subject enrollments, instructors, rooms, and schedules are managed by the university registrar and faculty. Use the filters below to search, organize, or inspect subject details.
               </div>
             </div>
 
             <!-- 2. Subjects Overview Stat Cards -->
-            <div class="stats-grid student-subjects-stats">
+            <div class="stats-grid student-subjects-stats" id="subjectsStatsGrid">
               <div class="stat-card">
                 <div class="stat-info">
                   <span class="stat-label">Enrolled Subjects</span>
                   <span class="stat-value" id="subjectsStatCount">0</span>
-                  <span class="stat-sub" id="subjectsStatSectionSub">Section BSIT 2-2</span>
+                  <span class="stat-sub" id="subjectsStatSectionSub">Enrolled Section</span>
                 </div>
                 <div class="stat-icon icon-blue">
                   <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none">

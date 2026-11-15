@@ -1,3 +1,4 @@
+/* Reusable UI component styling including cards, buttons, and badges. */
 /* ==========================================================================
    BANTUG UNIVERSITY - Shared UI Components Stylesheet (css/components.css)
    Navigation links & badges, header controls & dropdowns, buttons, cards,
@@ -198,6 +199,7 @@
   background: var(--royal-50);
 }
 
+.role-indicator-badge,
 .role-Indicator-btn {
   display: inline-flex;
   align-items: center;
@@ -211,10 +213,8 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.03em;
-}
-
-.role-Indicator-btn:hover {
-  background: var(--royal-100);
+  cursor: default;
+  user-select: none;
 }
 
 .role-dot {

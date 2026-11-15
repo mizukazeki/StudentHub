@@ -1,3 +1,4 @@
+// Database migration runner and demo dataset seeder.
 /**
  * ============================================================================
  * BANTUG UNIVERSITY – Student Portal System (Revision 7)
@@ -277,6 +278,153 @@ async function applySafeSchemaMigrations(conn) {
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
     `);
   } catch (_) {}
+
+  // 6. Safe inspection of applications table: ensure reference_number and UNIQUE constraint (Phase 2)
+  try {
+    const [appCols] = await conn.query("SHOW COLUMNS FROM `applications`");
+    const colNames = new Set(appCols.map((c) => c.Field));
+    if (!colNames.has("reference_number")) {
+      await conn.query("ALTER TABLE `applications` ADD COLUMN `reference_number` VARCHAR(30) NOT NULL AFTER `id`");
+    }
+    // Populate any empty or null reference numbers safely
+    await conn.query(
+      "UPDATE `applications` SET `reference_number` = CONCAT('BU-2026-', LPAD(application_id, 6, '0')) WHERE `reference_number` IS NULL OR TRIM(`reference_number`) = ''"
+    );
+    // Ensure UNIQUE index on reference_number
+    const [indexes] = await conn.query("SHOW INDEX FROM `applications` WHERE Key_name = 'uk_application_ref'");
+    if (indexes.length === 0) {
+      await conn.query("ALTER TABLE `applications` ADD UNIQUE KEY `uk_application_ref` (`reference_number`)");
+    }
+  } catch (_) {}
+
+  // 7. Safe inspection of users table: ensure is_active column exists (Phase 4)
+  try {
+    const [userCols] = await conn.query("SHOW COLUMNS FROM `users`");
+    const colNames = new Set(userCols.map((c) => c.Field));
+    if (!colNames.has("is_active")) {
+      await conn.query("ALTER TABLE `users` ADD COLUMN `is_active` TINYINT(1) NOT NULL DEFAULT 1 AFTER `is_demo_account`");
+    }
+  } catch (_) {}
+
+  // 8. Safe inspection of tables & columns for Phase 7: email_otps, notification_logs, applications, users
+  try {
+    // Create email_otps table
+    await conn.query(`
+      CREATE TABLE IF NOT EXISTS \`email_otps\` (
+        \`otp_id\` INT UNSIGNED NOT NULL AUTO_INCREMENT,
+        \`email\` VARCHAR(120) NOT NULL,
+        \`otp_hash\` VARCHAR(255) NOT NULL,
+        \`salt\` VARCHAR(32) NOT NULL,
+        \`purpose\` ENUM('email_verification', 'password_reset') NOT NULL,
+        \`reference_id\` VARCHAR(60) DEFAULT NULL,
+        \`attempts\` TINYINT UNSIGNED NOT NULL DEFAULT 0,
+        \`is_verified\` TINYINT(1) NOT NULL DEFAULT 0,
+        \`is_used\` TINYINT(1) NOT NULL DEFAULT 0,
+        \`expires_at\` DATETIME NOT NULL,
+        \`created_at\` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (\`otp_id\`),
+        KEY \`idx_email_purpose\` (\`email\`, \`purpose\`),
+        KEY \`idx_expires\` (\`expires_at\`)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    `);
+
+    // Create notification_logs table
+    await conn.query(`
+      CREATE TABLE IF NOT EXISTS \`notification_logs\` (
+        \`notification_id\` INT UNSIGNED NOT NULL AUTO_INCREMENT,
+        \`recipient_email\` VARCHAR(120) NOT NULL,
+        \`recipient_name\` VARCHAR(120) NOT NULL,
+        \`notification_type\` VARCHAR(60) NOT NULL,
+        \`subject\` VARCHAR(255) NOT NULL,
+        \`reference_id\` VARCHAR(60) DEFAULT NULL,
+        \`delivery_status\` ENUM('sent', 'failed', 'unconfigured') NOT NULL DEFAULT 'unconfigured',
+        \`error_message\` TEXT DEFAULT NULL,
+        \`created_at\` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (\`notification_id\`),
+        KEY \`idx_recipient_type\` (\`recipient_email\`, \`notification_type\`)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    `);
+
+    // Inspect applications table columns
+    const [appCols] = await conn.query("SHOW COLUMNS FROM `applications`");
+    const appColSet = new Set(appCols.map((c) => c.Field));
+    if (!appColSet.has("email_verified")) {
+      await conn.query("ALTER TABLE `applications` ADD COLUMN `email_verified` TINYINT(1) NOT NULL DEFAULT 0 AFTER `email`");
+    }
+    if (!appColSet.has("approval_email_sent")) {
+      await conn.query("ALTER TABLE `applications` ADD COLUMN `approval_email_sent` TINYINT(1) NOT NULL DEFAULT 0 AFTER `remarks`");
+    }
+    if (!appColSet.has("approval_email_sent_at")) {
+      await conn.query("ALTER TABLE `applications` ADD COLUMN `approval_email_sent_at` DATETIME DEFAULT NULL AFTER `approval_email_sent`");
+    }
+    if (!appColSet.has("approved_program")) {
+      await conn.query("ALTER TABLE `applications` ADD COLUMN `approved_program` VARCHAR(150) DEFAULT NULL AFTER `desired_program`");
+    }
+
+    // Inspect users table columns
+    const [userCols] = await conn.query("SHOW COLUMNS FROM `users`");
+    const userColSet = new Set(userCols.map((c) => c.Field));
+    if (!userColSet.has("email_verified")) {
+      await conn.query("ALTER TABLE `users` ADD COLUMN `email_verified` TINYINT(1) NOT NULL DEFAULT 0 AFTER `email`");
+      await conn.query("UPDATE `users` SET `email_verified` = 1 WHERE `is_demo_account` = 1");
+    }
+
+    // 9. Safe inspection of tables & columns for Phase 8: Secure Admin Panel
+    const roleCol = userCols.find((c) => c.Field === "role");
+    if (roleCol && !roleCol.Type.includes("'admin'")) {
+      await conn.query(
+        "ALTER TABLE `users` MODIFY COLUMN `role` ENUM('student', 'faculty', 'applicant', 'admin') NOT NULL DEFAULT 'student'"
+      );
+    }
+
+    if (!userColSet.has("must_change_password")) {
+      await conn.query(
+        "ALTER TABLE `users` ADD COLUMN `must_change_password` TINYINT(1) NOT NULL DEFAULT 0 AFTER `is_active`"
+      );
+    }
+
+    if (!userColSet.has("department")) {
+      await conn.query(
+        "ALTER TABLE `users` ADD COLUMN `department` VARCHAR(100) DEFAULT NULL AFTER `full_name`"
+      );
+    }
+
+    if (!userColSet.has("section")) {
+      await conn.query(
+        "ALTER TABLE `users` ADD COLUMN `section` VARCHAR(50) DEFAULT NULL AFTER `department`"
+      );
+    }
+
+    // Ensure initial administrator account exists safely without duplicates (Part B)
+    const adminUser = process.env.ADMIN_INITIAL_USER || "admin";
+    const adminPass = process.env.ADMIN_INITIAL_PASSWORD || "ChangeMeAdmin2026!";
+    const adminEmail = process.env.ADMIN_INITIAL_EMAIL || "admin@bantug.edu.example";
+    const adminName = process.env.ADMIN_INITIAL_NAME || "System Administrator";
+
+    const [existingAdmins] = await conn.query(
+      "SELECT `user_id`, `username`, `role`, `must_change_password` FROM `users` WHERE `role` = 'admin' OR `username` = ? LIMIT 1",
+      [adminUser]
+    );
+
+    if (existingAdmins.length === 0) {
+      const salt = crypto.randomBytes(8).toString("hex");
+      const derived = crypto
+        .pbkdf2Sync(String(adminPass).trim(), salt, 10000, 32, "sha256")
+        .toString("base64");
+      const hashedPass = `$pbkdf2-sha256$10000$${salt}$${derived}`;
+
+      await conn.query(
+        `INSERT INTO \`users\` (
+          \`username\`, \`email\`, \`email_verified\`, \`password_hash\`, \`role\`,
+          \`reference_id\`, \`full_name\`, \`department\`, \`is_demo_account\`,
+          \`is_active\`, \`must_change_password\`
+        ) VALUES (?, ?, 1, ?, 'admin', 'ADMIN-001', ?, 'IT & System Administration', 0, 1, 1)`,
+        [adminUser, adminEmail, hashedPass, adminName]
+      );
+    }
+  } catch (err) {
+    console.warn("[Phase 8 Migration Notice]:", err.message);
+  }
 }
 
 /**

@@ -5,10 +5,12 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "seed": "node database/seed.js"
+    "seed": "node database/seed.js",
+    "test": "node scripts/testing/verify-final-integration.js",
+    "backup": "node scripts/database/backup-database.js"
   },
   "dependencies": {
-    "mysql2": "^3.11.0"
+    "mysql2": "^3.11.0",
+    "nodemailer": "^10.5.0"
   }
 }
-

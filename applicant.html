@@ -1,0 +1,40 @@
+<!-- Public applicant entry point for prospective students. -->
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description"
+    content="BANTUG UNIVERSITY - Online Admission Application (Official Undergraduate Admissions)" />
+  <title>BANTUG UNIVERSITY | Online Admission Application</title>
+  <link rel="icon" type="image/png" href="assets/images/bantug-university-logo.png" />
+  <!-- Google Fonts: Inter & Poppins -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@500;600;700&display=swap"
+    rel="stylesheet" />
+  <link rel="stylesheet" href="css/main.css" />
+  <link rel="stylesheet" href="css/login.css" />
+</head>
+
+<body>
+  <!-- Public Admission Screen Container -->
+  <div id="publicAdmissionScreen" class="public-admission-screen">
+    <div data-partial="pages/admission.html"></div>
+  </div>
+
+  <div id="loginScreen" class="login-screen" hidden>
+    <div data-partial="pages/login.html"></div>
+  </div>
+
+  <div class="app-layout" id="appLayout" hidden></div>
+  <div data-partial="partials/components/toast-container.html"></div>
+
+  <!-- Script Bootstrap -->
+  <script src="js/partials-loader.js"></script>
+</body>
+
+</html>
+

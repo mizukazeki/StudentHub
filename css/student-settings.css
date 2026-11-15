@@ -1,3 +1,4 @@
+/* Styles for student settings and security preferences. */
 /* ==========================================================================
    BANTUG UNIVERSITY - Settings Page Stylesheet (css/student-settings.css)
    Dedicated styles for `#section-settings`:
@@ -150,6 +151,35 @@
   background: var(--bg-surface-alt);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-sm);
+}
+
+/* Phase 4: Administrative Notice Banner */
+.settings-notice-banner {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 18px;
+  background: var(--bg-surface-alt, #f8fafc);
+  border: 1px solid var(--border-color, #e2e8f0);
+  border-left: 4px solid var(--primary-color, #1a56db);
+  border-radius: var(--radius-sm, 6px);
+  margin-bottom: 20px;
+}
+
+.settings-notice-icon {
+  font-size: 1.3rem;
+  color: var(--primary-color, #1a56db);
+  flex-shrink: 0;
+}
+
+.settings-notice-text {
+  font-size: 0.88rem;
+  color: var(--text-main, #1e293b);
+  line-height: 1.45;
+}
+
+.settings-notice-text strong {
+  color: var(--text-main, #0f172a);
 }
 
 /* Responsive Breakpoints */

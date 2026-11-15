@@ -1,3 +1,4 @@
+// Class schedule rendering, day filtering, and timetable views.
 /**
  * ============================================================================
  * BANTUG UNIVERSITY - Student Portal System

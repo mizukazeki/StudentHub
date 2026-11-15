@@ -1,3 +1,4 @@
+-- Database schema definition and seed data for Bantug University portal.
 -- ============================================================================
 -- BANTUG UNIVERSITY - STUDENT PORTAL SYSTEM (REVISION 7)
 -- Complete MySQL / MariaDB Database Schema & Preloaded Demonstration Data

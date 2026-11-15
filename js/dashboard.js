@@ -1,3 +1,4 @@
+// Student dashboard widgets, course cards, and academic statistics.
 /**
  * ============================================================================
  * BANTUG UNIVERSITY - Student Portal System
@@ -178,7 +179,10 @@ const StudentHubDashboard = (function () {
     if (welcomeEl) welcomeEl.textContent = `Welcome, ${profile.fullName || "Student"}`;
     if (studNoEl) studNoEl.textContent = `Student No: ${profile.studentNumber || "—"}`;
     if (courseEl) courseEl.textContent = profile.course || "Bachelor of Science in Information Technology";
-    if (yearSecEl) yearSecEl.textContent = `${profile.yearLevel || "Year 2"} • ${profile.section || "BSIT 2-2"}`;
+    const secStr = profile.section || "";
+    const yrStr = profile.yearLevel || "";
+    const yrSecText = [yrStr, secStr].filter(Boolean).join(" • ") || "Enrolled Student";
+    if (yearSecEl) yearSecEl.textContent = yrSecText;
     if (termEl) termEl.textContent = profile.academicTerm || "2nd Sem, AY 2026–2027";
     if (heroSubjectsBtn) heroSubjectsBtn.textContent = `My Subjects (${totalEnrolledSubjects})`;
 
@@ -186,7 +190,7 @@ const StudentHubDashboard = (function () {
     const statSubVal = document.getElementById("dashStatSubjectsValue");
     const statSubSub = document.getElementById("dashStatSubjectsSub");
     if (statSubVal) statSubVal.textContent = String(totalEnrolledSubjects);
-    if (statSubSub) statSubSub.innerHTML = `Section ${escapeHtml(profile.section || "BSIT 2-2")} &bull; View All &rarr;`;
+    if (statSubSub) statSubSub.innerHTML = secStr ? `Section ${escapeHtml(secStr)} &bull; View All &rarr;` : `Enrolled Subjects &bull; View All &rarr;`;
 
     const statGradeVal = document.getElementById("dashStatGradesValue");
     const statGradeSub = document.getElementById("dashStatGradesSub");
@@ -218,6 +222,17 @@ const StudentHubDashboard = (function () {
           : `${submittedOrDoneCount} Submitted / Completed`;
     }
 
+    const statSchedVal = document.getElementById("dashStatScheduleValue");
+    const statSchedSub = document.getElementById("dashStatScheduleSub");
+    if (statSchedVal) statSchedVal.textContent = `${schedules.length} Sessions`;
+    if (statSchedSub) statSchedSub.innerHTML = `Monday &ndash; Friday Schedule &rarr;`;
+
+    const statAnnVal = document.getElementById("dashStatAnnouncementsValue");
+    const statAnnSub = document.getElementById("dashStatAnnouncementsSub");
+    const publishedAnnouncements = (state.announcements || []).filter((a) => a.published !== false);
+    if (statAnnVal) statAnnVal.textContent = String(publishedAnnouncements.length);
+    if (statAnnSub) statAnnSub.innerHTML = `Campus &amp; Faculty Advisories &rarr;`;
+
     // Hydrate Upcoming Classes Widget
     const schedHeadingEl = document.getElementById("dashScheduleHeading");
     const schedSecBadgeEl = document.getElementById("dashScheduleSectionBadge");
@@ -228,7 +243,7 @@ const StudentHubDashboard = (function () {
         ? `Today's & Upcoming Classes (${scheduleDay})`
         : `Upcoming Monday Classes (${scheduleDay})`;
     }
-    if (schedSecBadgeEl) schedSecBadgeEl.textContent = profile.section || "BSIT 2-2";
+    if (schedSecBadgeEl) schedSecBadgeEl.textContent = profile.section || "Enrolled";
     if (schedSubEl) {
       schedSubEl.textContent = isWeekday
         ? "Today's classes arranged chronologically"
@@ -283,7 +298,7 @@ const StudentHubDashboard = (function () {
     const subHeadingEl = document.getElementById("dashSubjectsHeading");
     const subBadgeEl = document.getElementById("dashSubjectsCountBadge");
     const subPreviewEl = document.getElementById("dashSubjectsPreviewContainer");
-    if (subHeadingEl) subHeadingEl.textContent = `My Subjects (${profile.section || "BSIT 2-2"})`;
+    if (subHeadingEl) subHeadingEl.textContent = profile.section ? `My Subjects (${profile.section})` : "My Subjects";
     if (subBadgeEl) {
       subBadgeEl.textContent = `${totalEnrolledSubjects} Total Subject${totalEnrolledSubjects === 1 ? "" : "s"}`;
     }
@@ -324,7 +339,7 @@ const StudentHubDashboard = (function () {
                           <td><strong>${escapeHtml(fullName)}</strong></td>
                           <td>${escapeHtml(sub.instructor || "Not specified")}</td>
                           <td><span class="badge badge-primary">${escapeHtml(
-                            sub.section || "BSIT 2-2"
+                            sub.section || profile.section || "Enrolled"
                           )}</span></td>
                           <td class="dash-schedule-summary-cell">${escapeHtml(
                             sub.scheduleSummary || "Not specified"

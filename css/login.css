@@ -1,3 +1,4 @@
+/* Styling for the login screen and authentication forms. */
 /* ==========================================================================
    BANTUG UNIVERSITY - Login Module Stylesheet (css/login.css)
    Dedicated styles for pages/login.html (branding, form, role tabs, demo box,
@@ -112,6 +113,10 @@
   gap: 16px;
 }
 
+.login-special-actions.single-action {
+  grid-template-columns: 1fr;
+}
+
 .demo-access-card,
 .applicant-cta-card {
   background: rgba(15, 23, 42, 0.45);
@@ -129,6 +134,7 @@
   border-color: rgba(251, 191, 36, 0.4);
 }
 
+.admission-cta-header h3,
 .demo-access-header h3 {
   font-size: 1rem;
   color: #ffffff;
@@ -300,7 +306,24 @@
   width: 100%;
   padding: 11px 18px;
   font-size: 0.94rem;
-  margin-bottom: 18px;
+  margin-bottom: 12px;
+}
+
+.login-help-note {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.81rem;
+  color: var(--text-muted);
+  padding-top: 14px;
+  margin-top: 6px;
+  border-top: 1px solid var(--border-color);
+  line-height: 1.4;
+}
+
+.login-help-note svg {
+  flex-shrink: 0;
+  color: var(--royal-600);
 }
 
 /* Demo Credentials Box */

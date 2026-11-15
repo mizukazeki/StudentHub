@@ -1,3 +1,4 @@
+// Student attendance tracking, filtering, and summary metrics.
 /**
  * ============================================================================
  * BANTUG UNIVERSITY - Student Portal System

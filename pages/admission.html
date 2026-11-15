@@ -1,0 +1,349 @@
+<!-- Public admission application form and requirements submission view. -->
+<!-- ====================================================================
+     BANTUG UNIVERSITY - PUBLIC ADMISSION APPLICATION PAGE (pages/admission.html)
+     Accessible to public visitors without requiring authentication or portal accounts.
+     Flow: PUBLIC ADMISSION PAGE -> APPLICATION FORM -> SUBMIT -> CONFIRMATION
+     ==================================================================== -->
+<div class="public-admission-wrapper">
+  <!-- Public Header Navigation Bar -->
+  <header class="public-admission-header">
+    <div class="public-admission-header-inner">
+      <div class="public-brand">
+        <div class="public-logo-box">
+          <img src="assets/images/bantug-university-logo.png" alt="BANTUG UNIVERSITY Official Seal"
+            class="bu-logo-img public-logo-img"
+            onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';" />
+          <div class="bu-logo-fallback" style="display:none;" aria-hidden="true">BU</div>
+        </div>
+        <div class="public-brand-text">
+          <span class="public-brand-title">BANTUG UNIVERSITY</span>
+          <span class="public-brand-subtitle">Office of the University Registrar &bull; Online Admission Application</span>
+        </div>
+      </div>
+      <div class="public-header-actions">
+        <button type="button" class="btn btn-secondary btn-portal-login" id="admissionToLoginBtn" title="Return to Portal Login">
+          <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none">
+            <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path>
+            <polyline points="10 17 15 12 10 7"></polyline>
+            <line x1="15" y1="12" x2="3" y2="12"></line>
+          </svg>
+          <span>Portal Login</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Public Hero Banner -->
+  <div class="public-hero-section">
+    <div class="public-hero-inner">
+      <span class="public-hero-badge">Academic Year 2026–2027</span>
+      <h1 class="public-hero-title">Undergraduate Online Admission Application</h1>
+      <p class="public-hero-desc">
+        Welcome prospective student! Complete the official application form below to apply for admission to BANTUG UNIVERSITY.
+        All applications are submitted directly to the Admissions Committee for review. No prior portal login or account is required.
+      </p>
+    </div>
+  </div>
+
+  <!-- Main Admission Container (Holds Form View OR Confirmation View) -->
+  <main class="public-main-container">
+    <!-- View 1: Application Form View -->
+    <div id="publicApplicationFormWrap" class="public-view-wrap">
+      <div class="public-instructions-card">
+        <div class="instructions-icon-col" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="22" height="22" stroke="currentColor" stroke-width="2" fill="none">
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="12" y1="16" x2="12" y2="12"></line>
+            <line x1="12" y1="8" x2="12.01" y2="8"></line>
+          </svg>
+        </div>
+        <div class="instructions-content">
+          <strong class="instructions-title">Application Instructions:</strong>
+          <p class="instructions-text">
+            Please ensure all personal, contact, and academic details provided are complete and accurate.
+            Fields marked with an asterisk (<span class="req">*</span>) are mandatory. Upon submission, an official application confirmation receipt
+            with your unique reference number will be generated immediately. Initial application status is set to <strong>Pending</strong>.
+          </p>
+        </div>
+      </div>
+
+      <div class="card public-form-card">
+        <div class="public-card-header">
+          <div>
+            <h2 class="public-card-title">Freshman Admission Application Form</h2>
+            <p class="public-card-subtitle">Official Undergraduate Application for First-Year Students</p>
+          </div>
+          <span class="public-badge-undergrad">Undergraduate Admissions &bull; Year 1</span>
+        </div>
+
+        <form id="publicAdmissionForm" novalidate>
+          <div class="form-grid">
+            <!-- SECTION 1: APPLICANT PERSONAL INFORMATION -->
+            <div class="form-section-divider full-width">
+              <h3>1. Personal Information</h3>
+              <p>Enter your legal name as it appears on official school records.</p>
+            </div>
+
+            <!-- Name Grid: Last Name, First Name, Middle Name -->
+            <div class="form-group full-width">
+              <div class="name-grid-3">
+                <div class="form-group-sub">
+                  <label class="form-label" for="pubLastName">Last Name <span class="req">*</span></label>
+                  <input
+                    type="text"
+                    id="pubLastName"
+                    name="lastName"
+                    class="form-control"
+                    placeholder="e.g. Dela Cruz"
+                    autocomplete="family-name"
+                    required
+                  />
+                  <div class="field-error" data-error-for="lastName"></div>
+                </div>
+
+                <div class="form-group-sub">
+                  <label class="form-label" for="pubFirstName">First Name <span class="req">*</span></label>
+                  <input
+                    type="text"
+                    id="pubFirstName"
+                    name="firstName"
+                    class="form-control"
+                    placeholder="e.g. Juan"
+                    autocomplete="given-name"
+                    required
+                  />
+                  <div class="field-error" data-error-for="firstName"></div>
+                </div>
+
+                <div class="form-group-sub">
+                  <label class="form-label" for="pubMiddleName">Middle Name <span style="font-size:0.75rem;color:var(--text-muted);font-weight:normal;">(Optional)</span></label>
+                  <input
+                    type="text"
+                    id="pubMiddleName"
+                    name="middleName"
+                    class="form-control"
+                    placeholder="e.g. Santos"
+                    autocomplete="additional-name"
+                  />
+                  <div class="field-error" data-error-for="middleName"></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Date of Birth (MM/DD/YYYY format) -->
+            <div class="form-group">
+              <label class="form-label" for="pubDob">Date of Birth (MM/DD/YYYY) <span class="req">*</span></label>
+              <input
+                type="text"
+                id="pubDob"
+                name="dateOfBirth"
+                class="form-control"
+                placeholder="MM/DD/YYYY"
+                maxlength="10"
+                autocomplete="bday"
+                required
+              />
+              <span class="form-hint">Enter in <strong>MM/DD/YYYY</strong> format (e.g. 05/18/2006).</span>
+              <div class="field-error" data-error-for="dateOfBirth"></div>
+            </div>
+
+            <!-- Email Address -->
+            <div class="form-group">
+              <label class="form-label" for="pubEmail">Email Address <span class="req">*</span></label>
+              <input
+                type="email"
+                id="pubEmail"
+                name="email"
+                class="form-control"
+                placeholder="applicant@example.com"
+                autocomplete="email"
+                required
+              />
+              <span class="form-hint">Official admission updates and verification codes will be delivered here.</span>
+              <div class="field-error" data-error-for="email"></div>
+            </div>
+
+            <!-- Contact Number (Philippine Format +63 9XX XXX XXXX) -->
+            <div class="form-group">
+              <label class="form-label" for="pubContactNumber">Mobile Contact Number <span class="req">*</span></label>
+              <div class="input-prefix-group">
+                <span class="input-fixed-prefix">+63</span>
+                <input
+                  type="tel"
+                  id="pubContactNumber"
+                  name="contactNumber"
+                  class="form-control"
+                  placeholder="9XX XXX XXXX"
+                  maxlength="12"
+                  inputmode="numeric"
+                  autocomplete="tel-national"
+                  required
+                />
+              </div>
+              <span class="form-hint">10 digits starting with 9 (e.g. 917 123 4567).</span>
+              <div class="field-error" data-error-for="contactNumber"></div>
+            </div>
+
+            <!-- Home Address -->
+            <div class="form-group full-width">
+              <label class="form-label" for="pubAddress">Complete Home Address <span class="req">*</span></label>
+              <input
+                type="text"
+                id="pubAddress"
+                name="address"
+                class="form-control"
+                placeholder="House / Unit No., Street, Barangay, City / Municipality, Province"
+                autocomplete="street-address"
+                required
+              />
+              <div class="field-error" data-error-for="address"></div>
+            </div>
+
+            <!-- SECTION 2: ACADEMIC PROGRAM PREFERENCES -->
+            <div class="form-section-divider full-width">
+              <h3>2. Academic Program Preferences</h3>
+              <p>Select your intended degree programs for enrollment.</p>
+            </div>
+
+            <!-- Desired Program (1st Choice) -->
+            <div class="form-group">
+              <label class="form-label" for="pubDesiredProgram">Desired Academic Program (1st Choice) <span class="req">*</span></label>
+              <select id="pubDesiredProgram" name="desiredProgram" class="form-control" required>
+                <option value="">-- Select Primary Degree Program --</option>
+                <option value="BS Information Technology">Bachelor of Science in Information Technology (BSIT)</option>
+                <option value="BS Computer Science">Bachelor of Science in Computer Science (BSCS)</option>
+                <option value="BS Information Systems">Bachelor of Science in Information Systems (BSIS)</option>
+                <option value="BS Business Administration">Bachelor of Science in Business Administration (BSBA)</option>
+                <option value="Bachelor of Secondary Education">Bachelor of Secondary Education (BSED)</option>
+              </select>
+              <div class="field-error" data-error-for="desiredProgram"></div>
+            </div>
+
+            <!-- Alternative Program (2nd Choice) -->
+            <div class="form-group">
+              <label class="form-label" for="pubSecondChoiceProgram">Alternative Degree Program (2nd Choice) <span class="req">*</span></label>
+              <select id="pubSecondChoiceProgram" name="secondChoiceProgram" class="form-control" required>
+                <option value="None">None (Primary Choice Only)</option>
+                <option value="BS Information Technology">Bachelor of Science in Information Technology (BSIT)</option>
+                <option value="BS Computer Science">Bachelor of Science in Computer Science (BSCS)</option>
+                <option value="BS Information Systems">Bachelor of Science in Information Systems (BSIS)</option>
+                <option value="BS Business Administration">Bachelor of Science in Business Administration (BSBA)</option>
+                <option value="Bachelor of Secondary Education">Bachelor of Secondary Education (BSED)</option>
+              </select>
+              <span class="form-hint">Must be different from your primary program choice.</span>
+              <div class="field-error" data-error-for="secondChoiceProgram"></div>
+            </div>
+
+            <!-- Applying for Year Level (Strictly Year 1) -->
+            <div class="form-group">
+              <label class="form-label" for="pubYearLevel">Applying for Year Level <span class="req">*</span></label>
+              <input
+                type="text"
+                id="pubYearLevel"
+                name="yearLevel"
+                class="form-control"
+                value="Year 1"
+                readonly
+                aria-readonly="true"
+              />
+              <span class="form-hint">Undergraduate freshman applications are strictly enrolled as Year 1.</span>
+              <div class="field-error" data-error-for="yearLevel"></div>
+            </div>
+
+            <!-- Applicant Classification -->
+            <div class="form-group">
+              <label class="form-label" for="pubApplicantType">Applicant Classification <span class="req">*</span></label>
+              <select id="pubApplicantType" name="applicantType" class="form-control" required>
+                <option value="Senior High School Graduate / Freshman">Senior High School Graduate / Freshman</option>
+                <option value="College Transferee">College Transferee</option>
+                <option value="Second Degree Seeker">Second Degree Seeker</option>
+                <option value="ALS / Alternative Learning System Completer">ALS / Alternative Learning System Completer</option>
+              </select>
+              <div class="field-error" data-error-for="applicantType"></div>
+            </div>
+
+            <!-- SECTION 3: EDUCATIONAL BACKGROUND -->
+            <div class="form-section-divider full-width">
+              <h3>3. Educational Background</h3>
+              <p>Details regarding previous schooling and completion year.</p>
+            </div>
+
+            <!-- Previous School Attended -->
+            <div class="form-group">
+              <label class="form-label" for="pubPreviousSchool">Previous School Attended <span class="req">*</span></label>
+              <input
+                type="text"
+                id="pubPreviousSchool"
+                name="previousSchool"
+                class="form-control"
+                placeholder="e.g. Quezon City High School"
+                required
+              />
+              <div class="field-error" data-error-for="previousSchool"></div>
+            </div>
+
+            <!-- Educational Background / Senior High Track -->
+            <div class="form-group">
+              <label class="form-label" for="pubEducationalBackground">Educational Background / Track <span class="req">*</span></label>
+              <input
+                type="text"
+                id="pubEducationalBackground"
+                name="educationalBackground"
+                class="form-control"
+                placeholder="e.g. STEM Academic Track / TVL-ICT"
+                required
+              />
+              <div class="field-error" data-error-for="educationalBackground"></div>
+            </div>
+
+            <!-- Year Graduated (Strictly 4 Digits) -->
+            <div class="form-group">
+              <label class="form-label" for="pubGraduationYear">Year Graduated / Completed <span class="req">*</span></label>
+              <input
+                type="text"
+                id="pubGraduationYear"
+                name="graduationYear"
+                class="form-control"
+                placeholder="YYYY (e.g. 2025)"
+                maxlength="4"
+                inputmode="numeric"
+                required
+              />
+              <span class="form-hint">Exactly 4 numerical digits. No decimals or future years.</span>
+              <div class="field-error" data-error-for="graduationYear"></div>
+            </div>
+          </div>
+
+          <!-- General Form Error Banner -->
+          <div id="pubGeneralError" class="alert alert-danger" style="display:none;margin-top:20px;"></div>
+
+          <!-- Form Actions -->
+          <div class="modal-actions" style="margin-top:30px;justify-content:flex-end;gap:12px;border-top:1px solid var(--border-color);padding-top:20px;">
+            <button type="button" class="btn btn-secondary" id="pubResetBtn">
+              Clear Form
+            </button>
+            <button type="submit" class="btn btn-primary" id="pubSubmitBtn" style="padding:10px 24px;font-weight:600;">
+              Submit Application for Admission &rarr;
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- View 2: Application Confirmation Receipt View (Initially Hidden) -->
+    <div id="publicConfirmationWrap" class="public-view-wrap" hidden>
+      <div id="publicConfirmationCardMount">
+        <!-- Rendered dynamically by StudentHubApplicant -->
+      </div>
+    </div>
+  </main>
+
+  <!-- Public Footer -->
+  <footer class="public-admission-footer">
+    <div class="public-footer-inner">
+      <p>&copy; 2026 BANTUG UNIVERSITY &bull; Office of Information and Communications Technology &bull; University Registrar</p>
+      <p class="public-footer-sub">This is a public admission form. Submitting an application does not create a student portal account or require logging in.</p>
+    </div>
+  </footer>
+</div>
+

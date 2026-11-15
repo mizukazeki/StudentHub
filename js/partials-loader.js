@@ -1,3 +1,4 @@
+// Asynchronous HTML partial injection and modular script loader.
 /**
  * ============================================================================
  * BANTUG UNIVERSITY - HTML Partial & Module Bootstrapper (partials-loader.js)
@@ -25,7 +26,8 @@
     "js/resources.js",
     "js/faculty.js",
     "js/applicant.js",
-    "js/settings.js"
+    "js/settings.js",
+    "js/admin.js"
   ];
 
   async function injectAllPartials() {

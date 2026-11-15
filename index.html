@@ -1,3 +1,4 @@
+<!-- Main portal entry point and layout shell for Bantug University. -->
 <!DOCTYPE html>
 <html lang="en" data-theme="light">
 
@@ -20,10 +21,15 @@
 </head>
 
 <body>
-  <!-- 1. Login & Access Interface -->
+  <!-- 1. Public Admission Page (Independent of Portals) -->
+  <div id="publicAdmissionScreen" class="public-admission-screen" hidden>
+    <div data-partial="pages/admission.html"></div>
+  </div>
+
+  <!-- 2. Login & Access Interface -->
   <div data-partial="pages/login.html"></div>
 
-  <!-- 2. Authenticated Portal Shell -->
+  <!-- 3. Authenticated Portal Shell -->
   <div class="app-layout" id="appLayout" hidden>
     <!-- Shared Mobile Overlay, Left Sidebar & Navigation -->
     <div data-partial="pages/shared/sidebar.html"></div>
@@ -47,6 +53,7 @@
         <div data-partial="partials/sections/student-sections.html"></div>
         <div data-partial="partials/sections/faculty-sections.html"></div>
         <div data-partial="partials/sections/applicant-sections.html"></div>
+        <div data-partial="partials/sections/admin-sections.html"></div>
         <div data-partial="partials/sections/shared-sections.html"></div>
       </main>
 

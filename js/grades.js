@@ -1,3 +1,4 @@
+// Student grade calculations, GPA tracking, and term evaluations.
 /**
  * ============================================================================
  * BANTUG UNIVERSITY - Student Portal System

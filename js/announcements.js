@@ -1,3 +1,4 @@
+// Handles announcement feeds, category filtering, and notice displays.
 /**
  * ============================================================================
  * BANTUG UNIVERSITY - Student Portal System

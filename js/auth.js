@@ -1,3 +1,4 @@
+// Authentication handler for login, logout, and role session states.
 /**
  * ============================================================================
  * BANTUG UNIVERSITY - Student Portal System
@@ -325,9 +326,7 @@ const StudentHubAuth = (function () {
     const defaultSection =
       targetSection ||
       (account.role === "applicant"
-        ? isApplicantDemo
-          ? "applicant-status"
-          : "applicant-landing"
+        ? "applicant-landing"
         : null);
 
     enterPortal(defaultSection);
@@ -335,176 +334,403 @@ const StudentHubAuth = (function () {
       StudentHubStorage.loadFromXamppDatabase();
     }
 
-    if (account.role === "applicant" && !isApplicantDemo) {
-      showToast("Opened BANTUG UNIVERSITY Online Application Portal.", "info");
-    } else if (account.role === "applicant" && isApplicantDemo) {
-      showToast("Logged into BANTUG UNIVERSITY Applicant Demo Account!", "success");
+    if (account.role === "applicant") {
+      showToast("Opened BANTUG UNIVERSITY Admission Overview.", "info");
     } else {
       showToast(`Entered BANTUG UNIVERSITY ${account.displayName} Portal.`, "success");
     }
   }
 
   /**
-   * Open "Explore Demo Portal" Role Launcher Modal
-   */
-  function openDemoRoleLauncher() {
-    const html = `
-      <p style="font-size:0.9rem;color:var(--text-secondary);margin-bottom:16px;">
-        Choose which <strong>BANTUG UNIVERSITY</strong> portal interface or demonstration account you want to explore. All portals connect to the Node.js &amp; MySQL database (<code>bantug_university_db</code>) with role-based access control.
-      </p>
-
-      <div class="role-launcher-grid">
-        <button type="button" class="role-launcher-card" data-launch-role="student">
-          <div>
-            <span class="badge badge-primary" style="margin-bottom:4px;">1. Student Portal (Year 2)</span>
-            <h3 style="font-size:1.05rem;">Racel Valiente (BSIT 2-2 Student)</h3>
-            <p style="font-size:0.82rem;color:var(--text-secondary);margin-top:3px;">
-              View the 9 BSIT 2-2 subjects, Monday–Friday timetable, read-only grades &amp; GWA, attendance records, task submissions, and announcements.
-            </p>
-          </div>
-          <span class="btn btn-sm btn-primary">Enter Student &rarr;</span>
-        </button>
-
-        <button type="button" class="role-launcher-card" data-launch-role="faculty">
-          <div>
-            <span class="badge badge-info" style="margin-bottom:4px;">2. Faculty Account 1 (IT 211)</span>
-            <h3 style="font-size:1.05rem;">Prof. Fabian Somera Schedule</h3>
-            <p style="font-size:0.82rem;color:var(--text-secondary);margin-top:3px;">
-              Displays <strong>only</strong> Instructor Fabian Somera's assigned subjects and class schedule, plus student application management, announcements, grades, and attendance.
-            </p>
-          </div>
-          <span class="btn btn-sm btn-primary">Enter Faculty 1 &rarr;</span>
-        </button>
-
-        <button type="button" class="role-launcher-card" data-launch-role="faculty2">
-          <div>
-            <span class="badge badge-info" style="margin-bottom:4px;">3. Faculty Account 2 (IT ELEC 2)</span>
-            <h3 style="font-size:1.05rem;">Prof. Francis Van Salvador Schedule</h3>
-            <p style="font-size:0.82rem;color:var(--text-secondary);margin-top:3px;">
-              Displays <strong>only</strong> Instructor Francis Van Salvador's assigned subjects and non-overlapping class schedule.
-            </p>
-          </div>
-          <span class="btn btn-sm btn-primary">Enter Faculty 2 &rarr;</span>
-        </button>
-
-        <button type="button" class="role-launcher-card" data-launch-role="applicant">
-          <div>
-            <span class="badge badge-warning" style="margin-bottom:4px;">4. Applicant Demo Account</span>
-            <h3 style="font-size:1.05rem;">Ceasar Villanueva (Applicant Demo Account)</h3>
-            <p style="font-size:0.82rem;color:var(--text-secondary);margin-top:3px;">
-              Dedicated demo account displaying sample applicant profile and sample application statuses (<strong>Pending</strong>, <strong>Under Review</strong>, <strong>Approved</strong>, <strong>Rejected</strong>).
-            </p>
-          </div>
-          <span class="btn btn-sm btn-primary">Enter Applicant Demo &rarr;</span>
-        </button>
-      </div>
-
-      <div class="modal-actions">
-        <button type="button" class="btn btn-secondary" id="closeDemoLauncherBtn">Cancel</button>
-      </div>
-    `;
-
-    openModal("Explore BANTUG UNIVERSITY Demo Portal", html, (bodyEl) => {
-      bodyEl.querySelector("#closeDemoLauncherBtn").addEventListener("click", closeModal);
-      bodyEl.querySelectorAll("[data-launch-role]").forEach((btn) => {
-        btn.addEventListener("click", () => {
-          const roleKey = btn.getAttribute("data-launch-role");
-          if (roleKey === "applicant") {
-            launchDemoSession("applicant", "applicant-status", { isApplicantDemoAccount: true });
-          } else {
-            launchDemoSession(roleKey);
-          }
-        });
-      });
-    });
-  }
-
-  /**
-   * Open Forgot Password Demonstration Modal
+   * Open Password Reset Assistance Modal with interactive OTP Verification & Password Reset
    */
   function openForgotPasswordModal() {
+    let cooldownTimerInterval = null;
+
     const html = `
-      <div class="notice-banner" style="margin-bottom:16px;">
-        <div>
-          <strong>BANTUG UNIVERSITY Demonstration Credentials Notice:</strong> All 45 preloaded Student, Faculty, and Applicant accounts are stored with SHA-256 password hashes in the MySQL <code>users</code> table (<code>bantug_university_db</code>). Use any of the demonstration accounts below or click <strong>Explore Demo Portal</strong>.
-        </div>
-      </div>
+      <div class="forgot-password-container" style="font-size:0.92rem;color:var(--text-main);line-height:1.5;">
+        <!-- Step 1: Identifier Input -->
+        <div id="fpStep1">
+          <p style="margin:0 0 16px;color:var(--text-secondary);font-size:0.9rem;">
+            Enter your registered email address or account ID (Student Number, Faculty ID, or Reference Number). If an account is found, a 6-digit verification code will be sent to your email.
+          </p>
 
-      <div style="font-size:0.86rem;color:var(--text-secondary);display:flex;flex-direction:column;gap:10px;">
-        <div style="padding:10px 12px;border:1px solid var(--border-color);border-radius:8px;">
-          <strong>Student Demo Account (Racel Valiente &bull; BSIT 2-2 &bull; Year 2):</strong><br/>
-          Username/Email: <code>student.demo@bantug.edu.example</code> or <code>2025-BSIT-0202</code><br/>
-          Password: <code>demo123</code>
-        </div>
-        <div style="padding:10px 12px;border:1px solid var(--border-color);border-radius:8px;">
-          <strong>Faculty Demo Accounts (15 Individual Professor Schedules):</strong><br/>
-          &bull; Prof. Fabian Somera (BSIT 2-1 &amp; 3-2): <code>f.somera.demo@bantug.edu.example</code> or <code>FAC-BU-04</code><br/>
-          &bull; Prof. Lee-mher Binay-an (IT 211 BSIT 2-2): <code>l.binayan.demo@bantug.edu.example</code> or <code>FAC-BU-10</code><br/>
-          &bull; Prof. Wendell Castillo (IT ELEC 2 BSIT 2-2): <code>w.castillo.demo@bantug.edu.example</code> or <code>FAC-BU-11</code><br/>
-          &bull; Prof. Francis Van Salvador (BSIT 2-1 &amp; 3-2): <code>f.salvador.demo@bantug.edu.example</code> or <code>FAC-BU-07</code><br/>
-          &bull; Prof. Edward Panganiban (IT ELEC 1): <code>e.panganiban.demo@bantug.edu.example</code> or <code>FAC-BU-06</code><br/>
-          &bull; Prof. Joseph Quevedo (IT BPO 1): <code>j.quevedo.demo@bantug.edu.example</code> or <code>FAC-BU-05</code><br/>
-          &bull; Prof. Gorgonio Vallestero III (IT INST 2): <code>g.vallestero.demo@bantug.edu.example</code> or <code>FAC-BU-08</code><br/>
-          &bull; Prof. Bush Duque (GEC 6): <code>b.duque.demo@bantug.edu.example</code> or <code>FAC-BU-02</code><br/>
-          &bull; Prof. Samantha Dominique Itliong (GE ELEC IT 3): <code>s.itliong.demo@bantug.edu.example</code> or <code>FAC-BU-01</code><br/>
-          &bull; Prof. Joan Albano (GEC 8): <code>j.albano.demo@bantug.edu.example</code> or <code>FAC-BU-03</code><br/>
-          Password for all faculty demo accounts: <code>faculty123</code>
-        </div>
-        <div style="padding:10px 12px;border:1px solid var(--border-color);border-radius:8px;">
-          <strong>Applicant Demo Account (Ceasar Villanueva &bull; Sample Application Statuses):</strong><br/>
-          Username/Email: <code>applicant.demo@bantug.edu.example</code> or <code>BU-ADM-2026-10482</code><br/>
-          Password: <code>apply123</code>
-        </div>
-      </div>
+          <form id="fpRequestForm" novalidate style="margin-bottom:14px;">
+            <div class="form-group" style="margin-bottom:14px;">
+              <label class="form-label" for="fpIdentifierInput">Email Address or Account ID <span class="req">*</span></label>
+              <input
+                type="text"
+                id="fpIdentifierInput"
+                name="identifier"
+                class="form-control"
+                placeholder="e.g. name@bantug.edu.example or 2025-BSIT-0202"
+                autocomplete="username"
+                required
+              />
+              <div class="field-error" data-error-for="identifier"></div>
+            </div>
+            <div id="fpRequestAlert" class="field-error" style="margin-bottom:12px;" role="alert"></div>
 
-      <div class="modal-actions">
-        <button type="button" class="btn btn-primary" id="closeForgotModalBtn">Got It</button>
+            <div class="modal-actions" style="display:flex;justify-content:flex-end;gap:10px;">
+              <button type="button" class="btn btn-secondary" id="fpCancelBtn">Cancel</button>
+              <button type="submit" class="btn btn-primary" id="fpSubmitRequestBtn">Send Verification Code</button>
+            </div>
+          </form>
+        </div>
+
+        <!-- Step 2: Enter OTP & New Password -->
+        <div id="fpStep2" hidden>
+          <div class="alert alert-info" id="fpCodeSentAlert" style="margin-bottom:16px;padding:12px 14px;background:var(--bg-light);border:1px solid var(--border-color);border-radius:8px;font-size:0.86rem;line-height:1.45;">
+            A 6-digit verification code has been dispatched. Enter the code below to set your new password. (Code valid for 5 minutes).
+          </div>
+
+          <form id="fpResetForm" novalidate style="margin-bottom:14px;">
+            <input type="hidden" id="fpResetIdentifier" name="identifier" />
+
+            <div class="form-group" style="margin-bottom:14px;">
+              <label class="form-label" for="fpOtpInput">6-Digit Verification Code <span class="req">*</span></label>
+              <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+                <input
+                  type="text"
+                  id="fpOtpInput"
+                  name="otp"
+                  class="form-control"
+                  maxlength="6"
+                  placeholder="000000"
+                  style="max-width:180px;font-size:1.15rem;letter-spacing:4px;font-weight:700;text-align:center;"
+                  required
+                />
+                <button type="button" class="btn btn-secondary btn-sm" id="fpResendOtpBtn">
+                  Resend Code
+                </button>
+                <span id="fpCooldownTimer" style="font-size:0.8rem;color:var(--text-muted);display:none;"></span>
+              </div>
+              <div class="field-error" data-error-for="otp"></div>
+            </div>
+
+            <div class="form-group" style="margin-bottom:14px;">
+              <label class="form-label" for="fpNewPasswordInput">New Password <span class="req">*</span></label>
+              <div class="password-input-wrap">
+                <input
+                  type="password"
+                  id="fpNewPasswordInput"
+                  name="newPassword"
+                  class="form-control"
+                  placeholder="Min. 6 characters"
+                  autocomplete="new-password"
+                  required
+                />
+                <button type="button" class="password-toggle-btn" data-toggle-target="fpNewPasswordInput" aria-label="Toggle password visibility">
+                  Show
+                </button>
+              </div>
+              <div class="field-error" data-error-for="newPassword"></div>
+            </div>
+
+            <div class="form-group" style="margin-bottom:14px;">
+              <label class="form-label" for="fpConfirmPasswordInput">Confirm New Password <span class="req">*</span></label>
+              <div class="password-input-wrap">
+                <input
+                  type="password"
+                  id="fpConfirmPasswordInput"
+                  name="confirmPassword"
+                  class="form-control"
+                  placeholder="Re-enter new password"
+                  autocomplete="new-password"
+                  required
+                />
+                <button type="button" class="password-toggle-btn" data-toggle-target="fpConfirmPasswordInput" aria-label="Toggle password visibility">
+                  Show
+                </button>
+              </div>
+              <div class="field-error" data-error-for="confirmPassword"></div>
+            </div>
+
+            <div id="fpResetAlert" class="field-error" style="margin-bottom:12px;" role="alert"></div>
+
+            <div class="modal-actions" style="display:flex;justify-content:space-between;align-items:center;">
+              <button type="button" class="btn btn-secondary" id="fpBackToStep1Btn">&larr; Back</button>
+              <button type="submit" class="btn btn-primary" id="fpSubmitResetBtn">Reset Password</button>
+            </div>
+          </form>
+        </div>
+
+        <div style="font-size:0.8rem;color:var(--text-muted);border-top:1px solid var(--border-color);padding-top:12px;margin-top:14px;">
+          Need assistance? Contact ICT Helpdesk at <code>helpdesk@bantug.edu.example</code> or Admissions at <code>admissions@bantug.edu.example</code>.
+        </div>
       </div>
     `;
 
-    openModal("Demonstration Account Credentials", html, (bodyEl) => {
-      bodyEl.querySelector("#closeForgotModalBtn").addEventListener("click", closeModal);
+    openModal("Reset Portal Password", html, (bodyEl) => {
+      const step1 = bodyEl.querySelector("#fpStep1");
+      const step2 = bodyEl.querySelector("#fpStep2");
+      const requestForm = bodyEl.querySelector("#fpRequestForm");
+      const resetForm = bodyEl.querySelector("#fpResetForm");
+      const cancelBtn = bodyEl.querySelector("#fpCancelBtn");
+      const backBtn = bodyEl.querySelector("#fpBackToStep1Btn");
+      const resendBtn = bodyEl.querySelector("#fpResendOtpBtn");
+      const cooldownTimerEl = bodyEl.querySelector("#fpCooldownTimer");
+      const identifierInput = bodyEl.querySelector("#fpIdentifierInput");
+      const resetIdentifierInput = bodyEl.querySelector("#fpResetIdentifier");
+      const requestAlert = bodyEl.querySelector("#fpRequestAlert");
+      const resetAlert = bodyEl.querySelector("#fpResetAlert");
+      const codeSentAlert = bodyEl.querySelector("#fpCodeSentAlert");
+
+      if (cancelBtn) cancelBtn.addEventListener("click", closeModal);
+
+      // Show/Hide password toggles
+      bodyEl.querySelectorAll(".password-toggle-btn").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const targetId = btn.getAttribute("data-toggle-target");
+          const input = bodyEl.querySelector(`#${targetId}`);
+          if (!input) return;
+          const isPass = input.type === "password";
+          input.type = isPass ? "text" : "password";
+          btn.textContent = isPass ? "Hide" : "Show";
+          btn.setAttribute("aria-label", isPass ? "Hide password" : "Show password");
+        });
+      });
+
+      function startCooldownTimer(seconds) {
+        if (cooldownTimerInterval) clearInterval(cooldownTimerInterval);
+        let rem = seconds;
+        if (resendBtn) resendBtn.disabled = true;
+        if (cooldownTimerEl) {
+          cooldownTimerEl.style.display = "inline";
+          cooldownTimerEl.textContent = `(Resend in ${rem}s)`;
+        }
+        cooldownTimerInterval = setInterval(() => {
+          rem--;
+          if (rem <= 0) {
+            clearInterval(cooldownTimerInterval);
+            if (resendBtn) resendBtn.disabled = false;
+            if (cooldownTimerEl) {
+              cooldownTimerEl.style.display = "none";
+              cooldownTimerEl.textContent = "";
+            }
+          } else {
+            if (cooldownTimerEl) cooldownTimerEl.textContent = `(Resend in ${rem}s)`;
+          }
+        }, 1000);
+      }
+
+      // Step 1: Request Code
+      if (requestForm) {
+        requestForm.addEventListener("submit", async (e) => {
+          e.preventDefault();
+          clearFormErrors(requestForm);
+          if (requestAlert) requestAlert.textContent = "";
+
+          const ident = String(identifierInput.value || "").trim();
+          if (!ident) {
+            setFieldError(requestForm, "identifier", "Please enter your email or account ID.");
+            return;
+          }
+
+          const submitBtn = bodyEl.querySelector("#fpSubmitRequestBtn");
+          if (submitBtn) {
+            submitBtn.disabled = true;
+            submitBtn.textContent = "Sending Code...";
+          }
+
+          try {
+            const res = await fetch("/api/auth/forgot-password", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ identifier: ident })
+            });
+
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok || !data.ok) {
+              if (data.cooldown) {
+                if (requestAlert) requestAlert.textContent = data.message || "Please wait before requesting another code.";
+              } else {
+                if (requestAlert) requestAlert.textContent = data.message || "Unable to initiate password reset.";
+              }
+              if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.textContent = "Send Verification Code";
+              }
+              return;
+            }
+
+            // Move to Step 2
+            step1.hidden = true;
+            step2.hidden = false;
+            resetIdentifierInput.value = ident;
+            if (codeSentAlert) {
+              codeSentAlert.textContent = data.maskedEmail
+                ? `A 6-digit verification code has been sent to ${data.maskedEmail}. Enter the code below to reset your password. (Valid for 5 minutes).`
+                : "A 6-digit verification code has been dispatched. Enter the code below to reset your password. (Valid for 5 minutes).";
+            }
+            startCooldownTimer(data.cooldownSeconds || 60);
+          } catch (_) {
+            if (requestAlert) requestAlert.textContent = "Network error: Unable to reach authentication server.";
+            if (submitBtn) {
+              submitBtn.disabled = false;
+              submitBtn.textContent = "Send Verification Code";
+            }
+          }
+        });
+      }
+
+      // Back to Step 1
+      if (backBtn) {
+        backBtn.addEventListener("click", () => {
+          step2.hidden = true;
+          step1.hidden = false;
+          if (cooldownTimerInterval) clearInterval(cooldownTimerInterval);
+        });
+      }
+
+      // Resend OTP in Step 2
+      if (resendBtn) {
+        resendBtn.addEventListener("click", async () => {
+          const ident = resetIdentifierInput.value || identifierInput.value;
+          resendBtn.disabled = true;
+          try {
+            const res = await fetch("/api/auth/forgot-password", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ identifier: ident })
+            });
+            const data = await res.json().catch(() => ({}));
+            if (data.cooldown) {
+              startCooldownTimer(data.remainingSeconds || 60);
+              showToast(data.message, "warning");
+            } else if (res.ok && data.ok) {
+              startCooldownTimer(60);
+              showToast("New verification code dispatched!", "success");
+            } else {
+              showToast(data.message || "Unable to resend code.", "error");
+              resendBtn.disabled = false;
+            }
+          } catch (_) {
+            showToast("Network error resending code.", "error");
+            resendBtn.disabled = false;
+          }
+        });
+      }
+
+      // Step 2: Submit Reset Password
+      if (resetForm) {
+        resetForm.addEventListener("submit", async (e) => {
+          e.preventDefault();
+          clearFormErrors(resetForm);
+          if (resetAlert) resetAlert.textContent = "";
+
+          const fd = new FormData(resetForm);
+          const ident = String(resetIdentifierInput.value || "").trim();
+          const otp = String(fd.get("otp") || "").trim();
+          const newPassword = String(fd.get("newPassword") || "");
+          const confirmPassword = String(fd.get("confirmPassword") || "");
+
+          let hasError = false;
+          if (!otp || !/^\d{6}$/.test(otp)) {
+            setFieldError(resetForm, "otp", "Please enter the 6-digit verification code.");
+            hasError = true;
+          }
+          if (!newPassword || newPassword.length < 6) {
+            setFieldError(resetForm, "newPassword", "Password must be at least 6 characters.");
+            hasError = true;
+          }
+          if (newPassword !== confirmPassword) {
+            setFieldError(resetForm, "confirmPassword", "Passwords do not match.");
+            hasError = true;
+          }
+
+          if (hasError) return;
+
+          const submitBtn = bodyEl.querySelector("#fpSubmitResetBtn");
+          if (submitBtn) {
+            submitBtn.disabled = true;
+            submitBtn.textContent = "Resetting Password...";
+          }
+
+          try {
+            const res = await fetch("/api/auth/reset-password", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                identifier: ident,
+                otp,
+                newPassword,
+                confirmPassword
+              })
+            });
+
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok || !data.ok) {
+              const errMsg = data.message || "Password reset failed.";
+              if (errMsg.toLowerCase().includes("code") || errMsg.toLowerCase().includes("otp")) {
+                setFieldError(resetForm, "otp", errMsg);
+              } else if (errMsg.toLowerCase().includes("match")) {
+                setFieldError(resetForm, "confirmPassword", errMsg);
+              } else {
+                if (resetAlert) resetAlert.textContent = errMsg;
+              }
+              if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.textContent = "Reset Password";
+              }
+              return;
+            }
+
+            // Success
+            if (codeSentAlert) {
+              codeSentAlert.className = "alert alert-success";
+              codeSentAlert.style.background = "#f0fdf4";
+              codeSentAlert.style.borderColor = "#bbf7d0";
+              codeSentAlert.style.color = "#15803d";
+              codeSentAlert.textContent = "Password successfully reset! You can now sign in with your new password.";
+            }
+            showToast("Password reset successfully!", "success");
+
+            // Prefill login input if on login page
+            const loginInput = document.getElementById("loginIdentifier");
+            if (loginInput) loginInput.value = ident;
+
+            setTimeout(() => {
+              closeModal();
+              const loginPw = document.getElementById("loginPassword");
+              if (loginPw) loginPw.focus();
+            }, 1800);
+          } catch (_) {
+            if (resetAlert) resetAlert.textContent = "Network error: Unable to complete password reset.";
+            if (submitBtn) {
+              submitBtn.disabled = false;
+              submitBtn.textContent = "Reset Password";
+            }
+          }
+        });
+      }
     });
   }
 
   function init() {
-    // Role Tabs on Login Page
-    document.querySelectorAll(".login-role-tab").forEach((tab) => {
-      tab.addEventListener("click", () => {
-        const role = tab.getAttribute("data-login-role");
-        selectLoginRoleTab(role);
-      });
-    });
-
-    // Show / Hide Password Button
+    // Show / Hide Password Button (Does not submit form)
     const togglePwBtn = document.getElementById("togglePasswordBtn");
     const pwInput = document.getElementById("loginPassword");
     if (togglePwBtn && pwInput) {
-      togglePwBtn.addEventListener("click", () => {
+      togglePwBtn.addEventListener("click", (e) => {
+        e.preventDefault();
         const isHidden = pwInput.type === "password";
         pwInput.type = isHidden ? "text" : "password";
         togglePwBtn.textContent = isHidden ? "Hide" : "Show";
+        togglePwBtn.setAttribute("aria-label", isHidden ? "Hide password" : "Show password");
+        togglePwBtn.setAttribute("title", isHidden ? "Hide password" : "Show password");
       });
     }
 
-    // Auto-Fill Demo Credential Cards
-    document.querySelectorAll("[data-fill-role]").forEach((btn) => {
-      btn.addEventListener("click", () => {
-        fillDemoCredentials(btn.getAttribute("data-fill-role"));
-      });
-    });
-
-    // Explore Demo Portal Button
-    const exploreBtn = document.getElementById("exploreDemoPortalBtn");
-    if (exploreBtn) {
-      exploreBtn.addEventListener("click", openDemoRoleLauncher);
-    }
-
-    // Apply to BANTUG UNIVERSITY Button (Opens normal application flow — NOT the Applicant Demo Account)
+    // Apply to BANTUG UNIVERSITY Button (Opens Public Admission Page without logging in)
     const applyBtn = document.getElementById("applyToUniversityBtn");
     if (applyBtn) {
       applyBtn.addEventListener("click", () => {
-        launchDemoSession("applicant", "applicant-landing", { isApplicantDemoAccount: false });
+        if (window.StudentHubApp && typeof window.StudentHubApp.showAdmissionPage === "function") {
+          window.StudentHubApp.showAdmissionPage();
+        } else {
+          window.location.hash = "#admission";
+        }
       });
     }
 
@@ -514,7 +740,7 @@ const StudentHubAuth = (function () {
       forgotBtn.addEventListener("click", openForgotPasswordModal);
     }
 
-    // Login Form Submit
+    // Login Form Submit (Role-Based Authentication via MySQL Backend)
     const loginForm = document.getElementById("portalLoginForm");
     if (loginForm) {
       loginForm.addEventListener("submit", async (e) => {
@@ -524,110 +750,115 @@ const StudentHubAuth = (function () {
         if (genErr) genErr.textContent = "";
 
         const fd = new FormData(loginForm);
-        const selectedRole = String(fd.get("role") || "student").trim();
-        const identifier = String(fd.get("identifier") || "").trim().toLowerCase();
+        const identifier = String(fd.get("identifier") || "").trim();
         const password = String(fd.get("password") || "").trim();
         const remember = document.getElementById("loginRememberMe")?.checked !== false;
 
         let valid = true;
         if (!identifier) {
-          setFieldError(loginForm, "identifier", "Please enter your email, username, or ID.");
+          setFieldError(loginForm, "identifier", "Please enter your email or account ID.");
           valid = false;
         }
         if (!password) {
-          setFieldError(loginForm, "password", "Please enter your demonstration password.");
+          setFieldError(loginForm, "password", "Please enter your password.");
           valid = false;
         }
         if (!valid) return;
 
-        let matchedRole = null;
-        let sessionToken = null;
-        let displayName = null;
-        let actorId = identifier;
-        let backendReached = false;
-
-        // 1. Authenticate against Node.js + MySQL `users` table (`POST /api/auth/login`)
-        if (typeof StudentHubStorage.loginWithDatabase === "function") {
-          const authRes = await StudentHubStorage.loginWithDatabase({
-            role: selectedRole,
-            identifier,
-            password
-          });
-
-          if (authRes && authRes.ok && authRes.data && authRes.data.session) {
-            backendReached = true;
-            matchedRole = authRes.data.session.role;
-            sessionToken = authRes.data.session.sessionToken || null;
-            displayName = authRes.data.session.displayName || null;
-            actorId = authRes.data.session.actorId || identifier;
-          } else if (authRes && authRes.status === 401) {
-            backendReached = true;
-            matchedRole = null;
-          }
+        const submitBtn = loginForm.querySelector('button[type="submit"]');
+        if (submitBtn) {
+          submitBtn.disabled = true;
+          submitBtn.textContent = "Signing in...";
         }
 
-        // 2. Fallback to local DEMO_ACCOUNTS only if backend server was unreachable
-        if (!backendReached) {
-          const targetAcc = DEMO_ACCOUNTS[selectedRole];
-          if (
-            targetAcc &&
-            targetAcc.identifiers.includes(identifier) &&
-            targetAcc.password === password
-          ) {
-            matchedRole = targetAcc.role;
-            displayName = targetAcc.displayName;
-          } else {
-            Object.values(DEMO_ACCOUNTS).forEach((acc) => {
-              if (acc.identifiers.includes(identifier) && acc.password === password) {
-                matchedRole = acc.role;
-                displayName = acc.displayName;
-              }
+        try {
+          // Authenticate against Node.js + MySQL `users` table (`POST /api/auth/login`)
+          let authRes = null;
+          if (typeof StudentHubStorage.loginWithDatabase === "function") {
+            authRes = await StudentHubStorage.loginWithDatabase({
+              identifier,
+              password
             });
           }
-        }
 
-        if (!matchedRole) {
-          if (genErr) {
-            genErr.textContent =
-              "Invalid credentials. Please verify your username/ID and password, or click one of the sample accounts below to auto-fill.";
+          if (authRes && authRes.ok && authRes.data && authRes.data.session) {
+            const session = authRes.data.session;
+            const matchedRole = session.role;
+            const displayName = session.displayName || session.actorName || session.username;
+            const actorId = session.actorId || identifier;
+            const sessionToken = session.sessionToken || session.token || null;
+
+            if (matchedRole === "faculty") {
+              StudentHubStorage.setActiveFacultyByIdentifier(identifier);
+            } else if (
+              matchedRole === "student" &&
+              typeof StudentHubStorage.setActiveStudentByIdentifier === "function"
+            ) {
+              StudentHubStorage.setActiveStudentByIdentifier(identifier);
+            }
+
+            const isApplicantDemo = matchedRole === "applicant";
+
+            StudentHubStorage.saveSession(
+              {
+                role: matchedRole,
+                identifier,
+                displayName,
+                actorId,
+                sessionToken,
+                isDemo: Boolean(session.isDemo),
+                isApplicantDemoAccount: isApplicantDemo,
+                mustChangePassword: Boolean(session.mustChangePassword)
+              },
+              remember
+            );
+
+            const targetDestination =
+              matchedRole === "admin"
+                ? "admin-dashboard"
+                : matchedRole === "applicant"
+                  ? "applicant-landing"
+                  : null;
+
+            enterPortal(targetDestination);
+            if (typeof StudentHubStorage.loadFromXamppDatabase === "function") {
+              StudentHubStorage.loadFromXamppDatabase();
+            }
+
+            if (matchedRole === "applicant") {
+              showToast(`Welcome to BANTUG UNIVERSITY Admission Portal, ${displayName}!`, "success");
+            } else {
+              showToast(`Welcome back, ${displayName}!`, "success");
+            }
+          } else if (authRes && authRes.status === 403) {
+            const msg = (authRes.data && authRes.data.message) || authRes.error || "Your account is currently inactive. Please contact the university.";
+            if (genErr) genErr.textContent = msg;
+            showToast(msg, "error");
+          } else if (authRes && authRes.status === 401) {
+            const msg = (authRes.data && authRes.data.message) || authRes.error || "Invalid email/ID or password.";
+            if (genErr) genErr.textContent = msg;
+            showToast(msg, "error");
+          } else if (authRes && authRes.status === 400) {
+            const msg = (authRes.data && authRes.data.message) || authRes.error || "Please check your inputs and try again.";
+            if (authRes.fieldErrors) {
+              if (authRes.fieldErrors.identifier) setFieldError(loginForm, "identifier", authRes.fieldErrors.identifier);
+              if (authRes.fieldErrors.password) setFieldError(loginForm, "password", authRes.fieldErrors.password);
+            }
+            if (genErr) genErr.textContent = msg;
+          } else {
+            const msg = "Unable to connect to the server. Please try again later.";
+            if (genErr) genErr.textContent = msg;
+            showToast(msg, "error");
           }
-          showToast("Invalid credentials. Please use a registered account or Explore Demo Portal.", "error");
-          return;
-        }
-
-        if (matchedRole === "faculty") {
-          StudentHubStorage.setActiveFacultyByIdentifier(identifier);
-        } else if (
-          matchedRole === "student" &&
-          typeof StudentHubStorage.setActiveStudentByIdentifier === "function"
-        ) {
-          StudentHubStorage.setActiveStudentByIdentifier(identifier);
-        }
-
-        const isApplicantDemo = matchedRole === "applicant";
-
-        StudentHubStorage.saveSession(
-          {
-            role: matchedRole,
-            identifier,
-            displayName,
-            actorId,
-            sessionToken,
-            isDemo: true,
-            isApplicantDemoAccount: isApplicantDemo
-          },
-          remember
-        );
-
-        enterPortal(isApplicantDemo ? "applicant-status" : null);
-        if (typeof StudentHubStorage.loadFromXamppDatabase === "function") {
-          StudentHubStorage.loadFromXamppDatabase();
-        }
-
-        if (isApplicantDemo) {
-          showToast("Welcome to the BANTUG UNIVERSITY Applicant Demo Account!", "success");
-        } else {
-          showToast(`Welcome to BANTUG UNIVERSITY (${matchedRole.toUpperCase()} Portal)!`, "success");
+        } catch (_) {
+          const msg = "Unable to connect to the server. Please try again later.";
+          if (genErr) genErr.textContent = msg;
+          showToast(msg, "error");
+        } finally {
+          if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.textContent = "Sign In to BANTUG UNIVERSITY";
+          }
         }
       });
     }
@@ -635,10 +866,7 @@ const StudentHubAuth = (function () {
 
   document.addEventListener("DOMContentLoaded", init);
 
-  return {
-    openDemoRoleLauncher,
-    launchDemoSession
-  };
+  return {};
 })();
 
 window.StudentHubAuth = StudentHubAuth;

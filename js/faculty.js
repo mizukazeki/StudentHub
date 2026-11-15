@@ -1,3 +1,4 @@
+// Faculty portal features including grading, rosters, and schedules.
 /**
  * ============================================================================
  * BANTUG UNIVERSITY - Student Portal System
@@ -203,25 +204,18 @@ const StudentHubFaculty = (function () {
         </div>
       </div>
 
-      <!-- Individual Faculty Account Switcher (Strictly 1 Professor at a time) -->
+      <!-- Official Faculty Account Banner (No Perspective Switcher) -->
       <div class="toolbar-row">
-        <div class="toolbar-group" style="justify-content:space-between;">
+        <div class="toolbar-group" style="justify-content:space-between;width:100%;">
           <div>
-            <strong>Active Faculty Demo Account:</strong>
-            <span style="font-size:0.82rem;color:var(--text-secondary);margin-left:6px;">
-              Each faculty account displays <strong>only that professor's own assigned subjects and schedule</strong>:
+            <strong>Connected Faculty Account:</strong>
+            <span style="font-size:0.84rem;color:var(--text-secondary);margin-left:6px;">
+              ${escapeHtml(fp.fullName)} (${escapeHtml(fp.facultyId || "FAC-BU-04")}) &bull; ${escapeHtml(fp.department || "College of Information Technology & Computing")}
             </span>
           </div>
-          <select id="facultyPerspectiveSelect" class="form-control" style="max-width:360px;" aria-label="Switch Active Faculty Demo Account">
-            ${directory
-              .map(
-                (prof) =>
-                  `<option value="${escapeHtml(prof.name)}" ${
-                    fp.fullName.toLowerCase() === prof.name.toLowerCase() ? "selected" : ""
-                  }>${escapeHtml(prof.name)} (${escapeHtml(prof.facultyId)})</option>`
-              )
-              .join("")}
-          </select>
+          <div>
+            <span class="badge badge-success">${escapeHtml(fp.accountStatus || "Active")}</span>
+          </div>
         </div>
       </div>
 
@@ -256,16 +250,16 @@ const StudentHubFaculty = (function () {
           </div>
         </div>
 
-        <div class="stat-card" data-fac-nav="faculty-tasks">
+        <div class="stat-card" data-fac-nav="faculty-grades">
           <div class="stat-info">
-            <span class="stat-label">Published Assignments</span>
-            <span class="stat-value">${(state.tasks || []).length}</span>
-            <span class="stat-sub">Manage tasks &amp; view submissions</span>
+            <span class="stat-label">Grade Management</span>
+            <span class="stat-value">${assignedSubjects.length}</span>
+            <span class="stat-sub">Student ratings &amp; grade records</span>
           </div>
           <div class="stat-icon icon-green">
             <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none">
-              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-              <polyline points="14 2 14 8 20 8"></polyline>
+              <path d="M22 10v6M2 10l10-5 10 5-10 5z"></path>
+              <path d="M6 12v5c3 3 9 3 12 0v-5"></path>
             </svg>
           </div>
         </div>
@@ -425,16 +419,13 @@ const StudentHubFaculty = (function () {
               <button type="button" class="btn btn-primary" data-fac-nav="faculty-grades">
                 Manage Student Grades
               </button>
-              <button type="button" class="btn btn-primary" data-fac-nav="faculty-attendance">
-                Record Class Attendance
-              </button>
-              <button type="button" class="btn btn-secondary" data-fac-nav="faculty-tasks">
-                Create / Edit Assignments
+              <button type="button" class="btn btn-primary" data-fac-nav="faculty-classes">
+                View Class Schedule
               </button>
               <button type="button" class="btn btn-secondary" data-fac-nav="faculty-announcements">
-                Publish Announcement
+                Publish Faculty Announcement
               </button>
-              <button type="button" class="btn btn-primary" style="grid-column:1 / -1;" data-fac-nav="faculty-applications">
+              <button type="button" class="btn btn-primary" data-fac-nav="faculty-applications">
                 Review Student Applications (${allApplications.length})
               </button>
             </div>
@@ -525,7 +516,8 @@ const StudentHubFaculty = (function () {
   }
 
   /**
-   * 2. FACULTY PROFILE
+   * 2. FACULTY PROFILE (READ-ONLY)
+   * Phase 5: Restricted to View-Only Official University Records
    */
   function renderProfile() {
     if (!requireRole("faculty", "access Faculty Profile")) return;
@@ -533,14 +525,35 @@ const StudentHubFaculty = (function () {
     if (!container) return;
 
     const state = StudentHubStorage.getState();
-    const fp = state.facultyProfile;
+    const fp = state.facultyProfile || {};
+    const session = StudentHubStorage.getSession();
     const assignedSubjects = getFacultySubjects(state);
+
+    const facultyId = fp.facultyId || (session && session.actorId) || "FAC-BU-04";
+    const fullName = fp.fullName || (session && (session.displayName || session.actorName)) || "Somera, Fabian";
+    const email = fp.email || (session && session.email) || "f.somera.demo@bantug.edu.example";
+    const contactNumber = fp.contactNumber || "Not provided";
+    const department = fp.department || (session && session.department) || "College of Information Technology & Computing";
+    const designation = fp.designation || "Instructor, Information Technology Department";
+    const advisorySection = fp.advisorySection || (session && session.advisorySection) || "BSIT 2-1";
+    const officeLocation = fp.officeLocation || "IT Faculty Consultation Room, BANTUG UNIVERSITY";
+    const birthDate = fp.birthDate || "Not provided";
+    const homeAddress = fp.homeAddress || "Not provided";
+    const accountStatus = fp.accountStatus || "Active";
 
     container.innerHTML = `
       <div class="section-header">
         <div class="section-header-info">
           <h2>BANTUG UNIVERSITY &mdash; Faculty Profile</h2>
-          <p>View and update your faculty profile and assigned BSIT 2-2 subjects.</p>
+          <p>Official faculty appointment records, personal details, contact information, and teaching load.</p>
+        </div>
+      </div>
+
+      <!-- Administrator-Only Notice Banner -->
+      <div class="settings-notice-banner" role="status">
+        <div class="settings-notice-icon" aria-hidden="true">ℹ️</div>
+        <div class="settings-notice-text">
+          <strong>Need to update your personal or contact information?</strong> Please contact the university administrator.
         </div>
       </div>
 
@@ -552,163 +565,192 @@ const StudentHubFaculty = (function () {
             class="profile-avatar-lg"
             style="margin-bottom:12px;"
           />
-          <h3 style="font-size:1.15rem;margin-bottom:4px;">${escapeHtml(fp.fullName)}</h3>
-          <span class="badge badge-info" style="margin-bottom:8px;">${escapeHtml(
-            fp.facultyId
-          )}</span>
-          <p style="font-size:0.84rem;color:var(--text-secondary);">${escapeHtml(fp.department)}</p>
+          <h3 style="font-size:1.15rem;margin-bottom:4px;">${escapeHtml(fullName)}</h3>
+          <span class="badge badge-info" style="margin-bottom:8px;">${escapeHtml(facultyId)}</span>
+          <p style="font-size:0.84rem;color:var(--text-secondary);margin-bottom:8px;">${escapeHtml(department)}</p>
+          <span class="badge badge-success" style="margin-bottom:14px;">${escapeHtml(accountStatus)}</span>
 
           <div class="profile-meta-list">
             <div class="profile-meta-row">
-              <span>Assigned Section</span>
-              <span>${escapeHtml(fp.advisorySection || "BSIT 2-2")}</span>
+              <span>Position</span>
+              <span>${escapeHtml(designation)}</span>
+            </div>
+            <div class="profile-meta-row">
+              <span>Advisory Section</span>
+              <span>${escapeHtml(advisorySection)}</span>
             </div>
             <div class="profile-meta-row">
               <span>Email</span>
-              <span style="word-break:break-all;">${escapeHtml(fp.email)}</span>
+              <span style="word-break:break-all;">${escapeHtml(email)}</span>
             </div>
             <div class="profile-meta-row">
               <span>Contact</span>
-              <span>${escapeHtml(fp.contactNumber)}</span>
+              <span>${escapeHtml(contactNumber)}</span>
             </div>
             <div class="profile-meta-row">
               <span>Assigned Subjects</span>
-              <span>${
-                assignedSubjects.length > 0
-                  ? assignedSubjects.map((s) => `${s.subjectCode} (${s.courseCode})`).join(", ")
-                  : "No assigned subjects"
-              }</span>
+              <span>${assignedSubjects.length} subjects</span>
             </div>
           </div>
         </div>
 
-        <div class="card">
-          <div class="card-header">
-            <h3 class="card-title">Edit Faculty Information</h3>
-            <span class="badge badge-neutral">Faculty Account</span>
+        <div style="display:flex;flex-direction:column;gap:20px;min-width:0;flex:1 1 auto;">
+          <!-- 1. Account & Institutional Information -->
+          <div class="card">
+            <div class="card-header">
+              <h3 class="card-title">Account Information</h3>
+              <span class="badge badge-info">View-Only</span>
+            </div>
+            <p class="settings-card-desc">
+              Official faculty appointment details on file with the Office of the Vice President for Academic Affairs.
+            </p>
+
+            <div class="settings-account-summary">
+              <div>
+                <span class="settings-summary-label">Faculty ID</span>
+                <span class="settings-summary-value">${escapeHtml(facultyId)}</span>
+              </div>
+              <div>
+                <span class="settings-summary-label">Full Name</span>
+                <span class="settings-summary-value">${escapeHtml(fullName)}</span>
+              </div>
+              <div>
+                <span class="settings-summary-label">Email Address</span>
+                <span class="settings-summary-value">${escapeHtml(email)}</span>
+              </div>
+              <div>
+                <span class="settings-summary-label">Contact Number</span>
+                <span class="settings-summary-value">${escapeHtml(contactNumber)}</span>
+              </div>
+              <div>
+                <span class="settings-summary-label">Department / College</span>
+                <span class="settings-summary-value">${escapeHtml(department)}</span>
+              </div>
+              <div>
+                <span class="settings-summary-label">Position / Designation</span>
+                <span class="settings-summary-value">${escapeHtml(designation)}</span>
+              </div>
+              <div>
+                <span class="settings-summary-label">Advisory Section</span>
+                <span class="settings-summary-value">${escapeHtml(advisorySection)}</span>
+              </div>
+              <div>
+                <span class="settings-summary-label">Office Location</span>
+                <span class="settings-summary-value">${escapeHtml(officeLocation)}</span>
+              </div>
+              <div>
+                <span class="settings-summary-label">Account Status</span>
+                <span class="settings-summary-value"><span class="badge badge-success">${escapeHtml(accountStatus)}</span></span>
+              </div>
+            </div>
           </div>
 
-          <form id="facultyProfileForm" novalidate>
-            <div class="form-grid">
-              <div class="form-group">
-                <label class="form-label" for="facIdInput">Faculty ID <span class="req">*</span></label>
-                <input type="text" id="facIdInput" name="facultyId" class="form-control" value="${escapeHtml(
-                  fp.facultyId
-                )}" />
-                <div class="field-error" data-error-for="facultyId"></div>
-              </div>
+          <!-- 2. Personal Information -->
+          <div class="card">
+            <div class="card-header">
+              <h3 class="card-title">Personal Information</h3>
+              <span class="badge badge-info">View-Only</span>
+            </div>
+            <p class="settings-card-desc">
+              Registered personal identification details on file with the University Human Resources Office.
+            </p>
 
-              <div class="form-group">
-                <label class="form-label" for="facNameInput">Full Name <span class="req">*</span></label>
-                <input type="text" id="facNameInput" name="fullName" class="form-control" value="${escapeHtml(
-                  fp.fullName
-                )}" />
-                <div class="field-error" data-error-for="fullName"></div>
+            <div class="settings-session-box" style="grid-template-columns: repeat(2, minmax(0, 1fr));">
+              <div>
+                <span class="settings-summary-label">Full Name</span>
+                <span class="settings-summary-value">${escapeHtml(fullName)}</span>
               </div>
-
-              <div class="form-group full-width">
-                <label class="form-label" for="facDeptInput">Department / College <span class="req">*</span></label>
-                <input type="text" id="facDeptInput" name="department" class="form-control" value="${escapeHtml(
-                  fp.department
-                )}" />
-                <div class="field-error" data-error-for="department"></div>
+              <div>
+                <span class="settings-summary-label">Date of Birth</span>
+                <span class="settings-summary-value">${escapeHtml(birthDate)}</span>
               </div>
-
-              <div class="form-group">
-                <label class="form-label" for="facEmailInput">University Email <span class="req">*</span></label>
-                <input type="email" id="facEmailInput" name="email" class="form-control" value="${escapeHtml(
-                  fp.email
-                )}" />
-                <div class="field-error" data-error-for="email"></div>
+              <div>
+                <span class="settings-summary-label">Department / College</span>
+                <span class="settings-summary-value">${escapeHtml(department)}</span>
               </div>
-
-              <div class="form-group">
-                <label class="form-label" for="facContactInput">Contact Number <span class="req">*</span></label>
-                <input type="text" id="facContactInput" name="contactNumber" class="form-control" value="${escapeHtml(
-                  fp.contactNumber
-                )}" />
-                <div class="field-error" data-error-for="contactNumber"></div>
+              <div>
+                <span class="settings-summary-label">Academic Rank / Position</span>
+                <span class="settings-summary-value">${escapeHtml(designation)}</span>
               </div>
-
-              <div class="form-group full-width">
-                <label class="form-label" for="facSectionInput">Assigned Section <span class="req">*</span></label>
-                <input type="text" id="facSectionInput" name="advisorySection" class="form-control" value="${escapeHtml(
-                  fp.advisorySection || "BSIT 2-2"
-                )}" />
-                <div class="field-error" data-error-for="advisorySection"></div>
+              <div>
+                <span class="settings-summary-label">Advisory Section</span>
+                <span class="settings-summary-value">${escapeHtml(advisorySection)}</span>
+              </div>
+              <div>
+                <span class="settings-summary-label">Employment Status</span>
+                <span class="settings-summary-value">Full-Time</span>
               </div>
             </div>
+          </div>
 
-            <div class="modal-actions">
-              <button type="submit" class="btn btn-primary">Save Faculty Profile</button>
+          <!-- 3. Contact Information -->
+          <div class="card">
+            <div class="card-header">
+              <h3 class="card-title">Contact Information</h3>
+              <span class="badge badge-info">View-Only</span>
             </div>
-          </form>
+            <p class="settings-card-desc">
+              Institutional and emergency contact records on file for official university communications.
+            </p>
+
+            <div class="settings-session-box" style="grid-template-columns: repeat(2, minmax(0, 1fr));">
+              <div>
+                <span class="settings-summary-label">University Email</span>
+                <span class="settings-summary-value">${escapeHtml(email)}</span>
+              </div>
+              <div>
+                <span class="settings-summary-label">Contact Number</span>
+                <span class="settings-summary-value">${escapeHtml(contactNumber)}</span>
+              </div>
+              <div style="grid-column: 1 / -1;">
+                <span class="settings-summary-label">Campus Office / Consultation Room</span>
+                <span class="settings-summary-value">${escapeHtml(officeLocation)}</span>
+              </div>
+              <div style="grid-column: 1 / -1;">
+                <span class="settings-summary-label">Home Address</span>
+                <span class="settings-summary-value">${escapeHtml(homeAddress)}</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- 4. Assigned Teaching Load & Subjects -->
+          <div class="card">
+            <div class="card-header">
+              <h3 class="card-title">Assigned Teaching Load &amp; Subjects</h3>
+              <span class="badge badge-primary">${assignedSubjects.length} Assigned</span>
+            </div>
+            <p class="settings-card-desc">
+              Official subject assignments registered for instruction and grade reporting.
+            </p>
+
+            ${
+              assignedSubjects.length > 0
+                ? `
+                <div style="display:flex;flex-direction:column;gap:10px;margin-top:6px;">
+                  ${assignedSubjects
+                    .map(
+                      (s) => `
+                    <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:var(--bg-surface-alt);border:1px solid var(--border-color);border-radius:var(--radius-sm);">
+                      <div>
+                        <strong>${escapeHtml(s.subjectCode)} &mdash; ${escapeHtml(s.courseCode || "")}</strong>
+                        <div style="font-size:0.84rem;color:var(--text-secondary);">${escapeHtml(s.subjectName || s.fullSubjectName || "")}</div>
+                      </div>
+                      <div style="text-align:right;">
+                        <span class="badge badge-info">${escapeHtml(s.units || 3)} Units</span>
+                        <div style="font-size:0.78rem;color:var(--text-muted);margin-top:2px;">${escapeHtml(s.section || advisorySection || "BSIT")}</div>
+                      </div>
+                    </div>
+                  `
+                    )
+                    .join("")}
+                </div>
+                `
+                : `<p style="font-size:0.85rem;color:var(--text-muted);padding:10px 0;">No subjects currently assigned to this faculty account.</p>`
+            }
+          </div>
         </div>
       </div>
     `;
-
-    const form = document.getElementById("facultyProfileForm");
-    if (form) {
-      form.addEventListener("submit", (e) => {
-        e.preventDefault();
-        if (!requireRole("faculty", "update Faculty Profile")) return;
-        clearFormErrors(form);
-
-        const fd = new FormData(form);
-        const facultyId = String(fd.get("facultyId") || "").trim();
-        const fullName = String(fd.get("fullName") || "").trim();
-        const department = String(fd.get("department") || "").trim();
-        const email = String(fd.get("email") || "").trim();
-        const contactNumber = String(fd.get("contactNumber") || "").trim();
-        const advisorySection = String(fd.get("advisorySection") || "").trim();
-
-        let valid = true;
-        if (!facultyId) {
-          setFieldError(form, "facultyId", "Faculty ID is required.");
-          valid = false;
-        }
-        if (!fullName) {
-          setFieldError(form, "fullName", "Full name is required.");
-          valid = false;
-        }
-        if (!department) {
-          setFieldError(form, "department", "Department is required.");
-          valid = false;
-        }
-        if (!email || !isValidEmail(email)) {
-          setFieldError(form, "email", "Please enter a valid email address.");
-          valid = false;
-        }
-        if (!contactNumber) {
-          setFieldError(form, "contactNumber", "Contact number is required.");
-          valid = false;
-        }
-        if (!advisorySection) {
-          setFieldError(form, "advisorySection", "Assigned section is required.");
-          valid = false;
-        }
-
-        if (!valid) {
-          showToast("Please check highlighted fields.", "error");
-          return;
-        }
-
-        const currState = StudentHubStorage.getState();
-        currState.facultyProfile = {
-          ...currState.facultyProfile,
-          facultyId,
-          fullName,
-          department,
-          email,
-          contactNumber,
-          advisorySection,
-          activeInstructorFilter: fullName
-        };
-        StudentHubStorage.saveState(currState);
-        refreshAll();
-        showToast("Faculty profile updated!", "success");
-      });
-    }
   }
 
   /**
@@ -4264,8 +4306,8 @@ const StudentHubFaculty = (function () {
     container.innerHTML = `
       <div class="section-header">
         <div class="section-header-info">
-          <h2>BANTUG UNIVERSITY &mdash; Student Applications Management</h2>
-          <p>Review submitted student applications from the MySQL database, inspect applicant details, and update admission statuses (Pending, Under Review, Approved, Rejected).</p>
+          <h2>Student Applications</h2>
+          <p>Review submitted student admission applications, inspect applicant details, and evaluate admission statuses.</p>
         </div>
       </div>
 
@@ -4385,12 +4427,12 @@ const StudentHubFaculty = (function () {
       <div class="card">
         <div class="card-header">
           <div>
-            <h3 class="card-title">Submitted Student Applications (MySQL Database Records)</h3>
+            <h3 class="card-title">Submitted Student Applications</h3>
             <p style="font-size:0.82rem;color:var(--text-secondary);margin-top:2px;">
-              Showing <strong>${filteredApps.length}</strong> of <strong>${allApplications.length}</strong> application records. Select a new status to update MySQL immediately or click <strong>View Details</strong>.
+              Select an admission status or click <strong>View Details</strong> to review complete applicant information.
             </p>
           </div>
-          <span class="badge badge-primary">${filteredApps.length} Shown</span>
+          <span class="badge badge-primary">${filteredApps.length} Applications</span>
         </div>
 
         <div class="table-responsive">

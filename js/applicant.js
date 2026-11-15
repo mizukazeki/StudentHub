@@ -1,3 +1,4 @@
+// Admission application form handling, validation, and submission flow.
 /**
  * ============================================================================
  * BANTUG UNIVERSITY - Student Portal System
@@ -80,242 +81,697 @@ const StudentHubApplicant = (function () {
     }
   ];
 
-  let preselectedProgram = "Bachelor of Science in Information Technology (BSIT)";
+  let preselectedProgram = "";
   let lastSubmittedConfirmation = null;
-  let selectedDemoRecordId = "app_demo_1";
-  let demoStatusFilter = "All";
-  let demoYearFilter = "All";
 
   function getStatusBadgeClass(status) {
-    if (status === "Approved") return "badge-success";
-    if (status === "Rejected") return "badge-danger";
-    if (status === "Under Review") return "badge-warning";
-    return "badge-info"; // Submitted
+    const s = String(status || "").toLowerCase().trim();
+    if (s === "approved") return "badge-success";
+    if (s === "rejected") return "badge-danger";
+    if (s === "under review") return "badge-info";
+    return "badge-warning"; // Pending
   }
 
   /**
-   * 1. APPLICANT LANDING PAGE (Admissions Overview)
-   * Does not expose sample application status records to prospective applicants.
+   * Helper: Return short, clear applicant status explanation
+   */
+  function getStatusExplanation(status) {
+    const s = String(status || "").toLowerCase().trim();
+    if (s === "approved") {
+      return "Congratulations! Your application for admission to BANTUG UNIVERSITY has been approved. Please monitor your registered email address for enrollment instructions and registration schedules.";
+    }
+    if (s === "rejected") {
+      return "We regret to inform you that your application was not accepted for admission for this academic cycle. Thank you for your interest in BANTUG UNIVERSITY.";
+    }
+    if (s === "under review") {
+      return "Your academic credentials and program choices are currently being evaluated by the admissions department faculty. Please check back periodically for updates.";
+    }
+    // Default: Pending / Submitted
+    return "Your admission application has been received and is queued for verification by the Admissions Committee. No further action is required from you at this time.";
+  }
+
+  /**
+   * Helper: Retrieve the applicant's actual submitted application
+   * - Never returns fake simulated demo records
+   */
+  function getApplicantApplication() {
+    if (lastSubmittedConfirmation && lastSubmittedConfirmation.referenceNumber) {
+      return lastSubmittedConfirmation;
+    }
+
+    try {
+      const cached = sessionStorage.getItem("bu_last_submitted_app");
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (parsed && parsed.referenceNumber) {
+          lastSubmittedConfirmation = parsed;
+          return parsed;
+        }
+      }
+    } catch (_) {}
+
+    const state = StudentHubStorage.getState();
+    const realApps = (state.applications || []).filter((a) => !a.isDemoRecord);
+    const session = StudentHubStorage.getSession();
+
+    if (session) {
+      const ident = String(session.identifier || "").toLowerCase().trim();
+      const displayName = String(session.displayName || "").toLowerCase().trim();
+
+      const matched = realApps.find((a) => {
+        if (a.referenceNumber && String(a.referenceNumber).toLowerCase() === ident) return true;
+        if (a.email && String(a.email).toLowerCase() === ident) return true;
+        if (a.username && String(a.username).toLowerCase() === ident) return true;
+        if (session.actorId && a.id === session.actorId) return true;
+        if (displayName && a.fullName && String(a.fullName).toLowerCase() === displayName) return true;
+        return false;
+      });
+
+      if (matched) return matched;
+    }
+
+    return null;
+  }
+
+  /**
+   * Helper: Format any ISO date / YYYY-MM-DD string into MM/DD/YYYY
+   */
+  function formatDateMMDDYYYY(dateStr) {
+    if (!dateStr) return "";
+    const str = String(dateStr).trim();
+    if (/^\d{2}\/\d{2}\/\d{4}$/.test(str)) return str;
+    const match = str.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (match) {
+      return `${match[2]}/${match[3]}/${match[1]}`;
+    }
+    const d = new Date(str);
+    if (!isNaN(d.getTime())) {
+      const mm = String(d.getMonth() + 1).padStart(2, "0");
+      const dd = String(d.getDate()).padStart(2, "0");
+      const yyyy = d.getFullYear();
+      return `${mm}/${dd}/${yyyy}`;
+    }
+    return str;
+  }
+
+  /**
+   * Helper: Validate Date of Birth in MM/DD/YYYY format
+   * - Ensures real calendar date (checks leap years, valid days per month)
+   * - Rejects future dates
+   * - Converts to YYYY-MM-DD for MySQL storage
+   */
+  function validateDateMMDDYYYY(val) {
+    const trimmed = String(val || "").trim();
+    if (!trimmed) {
+      return { valid: false, error: "Date of birth is required." };
+    }
+    const match = trimmed.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+    if (!match) {
+      return { valid: false, error: "Date of birth must use MM/DD/YYYY format (e.g. 09/12/2007)." };
+    }
+    const mm = parseInt(match[1], 10);
+    const dd = parseInt(match[2], 10);
+    const yyyy = parseInt(match[3], 10);
+
+    if (mm < 1 || mm > 12) {
+      return { valid: false, error: "Invalid month. Month must be between 01 and 12." };
+    }
+    const isLeapYear = (yyyy % 4 === 0 && yyyy % 100 !== 0) || (yyyy % 400 === 0);
+    const daysInMonths = [31, isLeapYear ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+    const maxDays = daysInMonths[mm - 1];
+
+    if (dd < 1 || dd > maxDays) {
+      return {
+        valid: false,
+        error: `Invalid day. Month ${String(mm).padStart(2, "0")} has ${maxDays} days in year ${yyyy}.`
+      };
+    }
+
+    const today = new Date();
+    if (yyyy < 1920) {
+      return { valid: false, error: "Year of birth cannot be earlier than 1920." };
+    }
+
+    const inputDate = new Date(yyyy, mm - 1, dd, 23, 59, 59, 999);
+    if (inputDate > today) {
+      return { valid: false, error: "Date of birth cannot be a future date." };
+    }
+
+    const mysqlDate = `${yyyy}-${String(mm).padStart(2, "0")}-${String(dd).padStart(2, "0")}`;
+    const displayDate = `${String(mm).padStart(2, "0")}/${String(dd).padStart(2, "0")}/${yyyy}`;
+    return { valid: true, mysqlDate, displayDate };
+  }
+
+  /**
+   * Helper: Validate individual name components (First, Middle, Last)
+   * - Accepts letters, spaces (compound names like "Maria Clara", "Dela Cruz"), hyphens, apostrophes
+   * - Rejects numbers and invalid special characters
+   * - Trims whitespace
+   */
+  function validateNamePart(value, fieldLabel, isOptional = false) {
+    const trimmed = String(value || "").trim();
+    if (!trimmed) {
+      if (isOptional) return { valid: true, value: "" };
+      return { valid: false, error: `${fieldLabel} is required.` };
+    }
+    if (/\d/.test(trimmed)) {
+      return { valid: false, error: `${fieldLabel} cannot contain numbers.` };
+    }
+    // Allow Latin/Filipino letters (including ñ, Ñ, accented chars), spaces, hyphens, and apostrophes
+    const nameRegex = /^[A-Za-z\u00C0-\u00FF\u0100-\u017F\u00f1\u00d1]+([ A-Za-z\u00C0-\u00FF\u0100-\u017F\u00f1\u00d1'\-]*[A-Za-z\u00C0-\u00FF\u0100-\u017F\u00f1\u00d1]+)?$/;
+    if (!nameRegex.test(trimmed)) {
+      return {
+        valid: false,
+        error: `${fieldLabel} contains invalid characters. Only letters, spaces, hyphens, and apostrophes are allowed.`
+      };
+    }
+    if (trimmed.length < 2) {
+      return { valid: false, error: `${fieldLabel} must be at least 2 characters.` };
+    }
+    if (trimmed.length > 50) {
+      return { valid: false, error: `${fieldLabel} must not exceed 50 characters.` };
+    }
+    return { valid: true, value: trimmed };
+  }
+
+  /**
+   * Helper: Validate Philippine Contact Number
+   * - Fixed +63 international prefix
+   * - Exactly 10 digits after prefix, starting with 9
+   * - Rejects letters and special characters
+   * - Prevents duplicate country codes
+   */
+  function validatePhilippineContact(value) {
+    let raw = String(value || "").trim();
+    // Strip accidental leading +63, 63, or 0
+    raw = raw.replace(/^\+?63\s*/, "").replace(/^0/, "");
+    if (/[^\d\s\-]/.test(raw)) {
+      return { valid: false, error: "Contact number can only contain digits." };
+    }
+    const digits = raw.replace(/\D/g, "");
+    if (!digits) {
+      return { valid: false, error: "Contact number is required." };
+    }
+    if (digits.length !== 10) {
+      return {
+        valid: false,
+        error: `Contact number must be exactly 10 digits after +63 (currently ${digits.length} digits).`
+      };
+    }
+    if (!digits.startsWith("9")) {
+      return {
+        valid: false,
+        error: "Philippine mobile numbers must start with 9 (e.g. 9XXXXXXXXX)."
+      };
+    }
+    const normalized = `+63 ${digits.slice(0, 3)} ${digits.slice(3, 6)} ${digits.slice(6)}`;
+    return { valid: true, digits, normalized };
+  }
+
+  /**
+   * Helper: Validate Graduation Year
+   * - Must consist of exactly 4 numerical digits
+   * - Rejects decimals, letters, special characters
+   * - Rejects future years (max current year 2026) and years before 1950
+   */
+  function validateGraduationYear(value) {
+    const trimmed = String(value || "").trim();
+    if (!trimmed) {
+      return { valid: false, error: "Year graduated / completed is required." };
+    }
+    if (/\./.test(trimmed) || /\,/.test(trimmed)) {
+      return { valid: false, error: "Year graduated must be a 4-digit integer without decimals." };
+    }
+    if (!/^\d{4}$/.test(trimmed)) {
+      return { valid: false, error: "Year graduated must consist of exactly 4 numerical digits." };
+    }
+    const yr = parseInt(trimmed, 10);
+    const currentYear = new Date().getFullYear();
+    if (yr < 1950) {
+      return { valid: false, error: "Year graduated cannot be earlier than 1950." };
+    }
+    if (yr > currentYear) {
+      return { valid: false, error: `Year graduated cannot be in the future (maximum ${currentYear}).` };
+    }
+    return { valid: true, year: String(yr) };
+  }
+
+  /**
+   * Helper: Validate Academic Program Choices
+   * - First choice is required
+   * - Second choice must be different from First choice
+   */
+  function validateProgramChoices(desiredProgram, secondChoiceProgram) {
+    if (!desiredProgram) {
+      return { valid: false, field: "desiredProgram", error: "Please select your desired academic program (1st Choice)." };
+    }
+    if (
+      secondChoiceProgram &&
+      secondChoiceProgram !== "None" &&
+      secondChoiceProgram.trim().toLowerCase() === desiredProgram.trim().toLowerCase()
+    ) {
+      return {
+        valid: false,
+        field: "secondChoiceProgram",
+        error: "Your second-choice program must be different from your first choice."
+      };
+    }
+    return { valid: true };
+  }
+
+  /**
+   * Helper: Copy reference number to clipboard with accessible feedback
+   */
+  async function copyReferenceNumberToClipboard(text, btnEl, feedbackEl) {
+    const cleanText = String(text || "").trim();
+    if (!cleanText) return;
+
+    let success = false;
+    if (navigator.clipboard && window.isSecureContext) {
+      try {
+        await navigator.clipboard.writeText(cleanText);
+        success = true;
+      } catch (_) {
+        success = false;
+      }
+    }
+
+    if (!success) {
+      try {
+        const tempTextArea = document.createElement("textarea");
+        tempTextArea.value = cleanText;
+        tempTextArea.style.position = "fixed";
+        tempTextArea.style.top = "-9999px";
+        tempTextArea.style.left = "-9999px";
+        tempTextArea.setAttribute("readonly", "");
+        document.body.appendChild(tempTextArea);
+        tempTextArea.select();
+        success = document.execCommand("copy");
+        document.body.removeChild(tempTextArea);
+      } catch (_) {
+        success = false;
+      }
+    }
+
+    if (success) {
+      if (btnEl) {
+        const textSpan = btnEl.querySelector(".copy-btn-text");
+        const originalText = textSpan ? textSpan.textContent : "Copy Reference Number";
+        btnEl.classList.add("btn-copied");
+        if (textSpan) textSpan.textContent = "Copied!";
+        setTimeout(() => {
+          btnEl.classList.remove("btn-copied");
+          if (textSpan) textSpan.textContent = originalText;
+        }, 2500);
+      }
+      if (feedbackEl) {
+        feedbackEl.textContent = "Reference number copied!";
+        feedbackEl.style.display = "inline-block";
+        setTimeout(() => {
+          feedbackEl.textContent = "";
+          feedbackEl.style.display = "none";
+        }, 3000);
+      }
+      showToast("Reference number copied to clipboard!", "success");
+    } else {
+      showToast("Unable to copy to clipboard automatically.", "warning");
+    }
+  }
+
+  /**
+   * 1. ADMISSION OVERVIEW DASHBOARD (Phase 3 Redesign)
+   * Displays the applicant's official admission overview using actual submitted application
+   * data from the database, or a helpful empty state prompting them to apply.
    */
   function renderLanding() {
     const container = document.getElementById("applicantLandingContainer");
     if (!container) return;
 
-    const isDemoAccount = StudentHubStorage.isApplicantDemoSession();
+    const app = getApplicantApplication();
 
     container.innerHTML = `
-      <!-- Applicant Welcome Hero Banner -->
-      <div class="hero-banner applicant-hero">
-        <div class="hero-left">
-          <div class="university-logo-wrap">
-            <img
-              src="${escapeHtml(StudentHubStorage.getLogoSrc())}"
-              alt="BANTUG UNIVERSITY Logo"
-              class="bu-logo-img"
-              style="max-height:70px;max-width:110px;"
-              onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
-            />
-            <div class="bu-logo-fallback" style="display:none;">BU</div>
-          </div>
-          <div>
-            <div class="hero-greeting">BANTUG UNIVERSITY &bull; Online Admissions Portal</div>
-            <h2 class="hero-title">Apply to BANTUG UNIVERSITY</h2>
-            <div class="hero-meta">
-              <span class="hero-pill">Academic Year 2026–2027</span>
-              <span class="hero-pill">4-Year Degree Programs (Year 1–Year 4)</span>
-              <span class="hero-pill">Local Academic Demonstration</span>
-            </div>
-          </div>
-        </div>
-        <div class="hero-actions">
-          ${
-            isDemoAccount
-              ? `<button type="button" class="btn btn-hero" data-app-nav="applicant-status">
-                  &larr; Back to Demo Application Status
-                </button>`
-              : `<button type="button" class="btn btn-applicant-cta" style="width:auto;" data-app-nav="applicant-form">
-                  Apply Now &rarr;
-                </button>`
-          }
-        </div>
+      <!-- Responsive Applicant Navigation Tabs (Mobile & Desktop accessible without hamburger) -->
+      <div class="applicant-nav-tabs">
+        <button type="button" class="applicant-tab-btn active" data-app-nav="applicant-landing">
+          <svg viewBox="0 0 24 24" width="17" height="17" stroke="currentColor" stroke-width="2" fill="none">
+            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+            <polyline points="9 22 9 12 15 12 15 22"></polyline>
+          </svg>
+          <span>Admission Overview</span>
+        </button>
+        <button type="button" class="applicant-tab-btn" data-app-nav="applicant-form">
+          <svg viewBox="0 0 24 24" width="17" height="17" stroke="currentColor" stroke-width="2" fill="none">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+            <polyline points="14 2 14 8 20 8"></polyline>
+            <line x1="12" y1="18" x2="12" y2="12"></line>
+            <line x1="9" y1="15" x2="15" y2="15"></line>
+          </svg>
+          <span>Application Form</span>
+        </button>
       </div>
 
-      <div class="notice-banner">
-        <div>
-          <strong>Academic Database Notice:</strong> This Applicant Portal is connected to the <strong>BANTUG UNIVERSITY Student Portal System</strong> Node.js + MySQL backend (<code>bantug_university_db</code>). Submitted applications are saved directly in the MySQL <code>applications</code> table and immediately forwarded to Faculty Application Management for review.
-        </div>
-      </div>
-
-      <!-- Available Academic Programs -->
-      <div class="section-header" style="margin-bottom:14px;">
+      <!-- Page Header -->
+      <div class="section-header">
         <div class="section-header-info">
-          <h3 style="font-size:1.2rem;">Available Academic Degree Programs</h3>
-          <p>Review our 4-year undergraduate programs (Year 1 to Year 4) below.</p>
+          <h2>Admission Overview</h2>
+          <p>Review your official freshman admission application status and submitted program choices.</p>
+        </div>
+        <div class="section-header-actions">
+          <button type="button" class="btn btn-secondary" id="applicantAccountDetailsBtn">
+            Account Preferences
+          </button>
+          <button type="button" class="btn btn-primary" data-app-nav="applicant-form">
+            ${app ? "+ Submit Another Application" : "Complete Application Form &rarr;"}
+          </button>
         </div>
       </div>
 
-      <div class="programs-grid">
-        ${AVAILABLE_PROGRAMS.map(
-          (prog) => `
-          <div class="program-card ${prog.featured ? "featured-program" : ""}">
+      ${
+        app
+          ? `
+        <!-- Submitted Application Overview Card -->
+        <div class="card admission-card" style="margin-bottom:24px;">
+          <div class="card-header" style="flex-wrap:wrap;gap:14px;align-items:flex-start;">
             <div>
-              <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px;">
-                <span class="badge ${prog.featured ? "badge-primary" : "badge-info"}">${escapeHtml(
-            prog.code
-          )}</span>
-                <span style="font-size:0.76rem;color:var(--text-muted);font-weight:600;">${escapeHtml(
-                  prog.duration
-                )}</span>
+              <div style="font-size:0.78rem;font-weight:700;letter-spacing:0.06em;color:var(--royal-600);text-transform:uppercase;margin-bottom:4px;">
+                Admissions Application Record
               </div>
-              <h4 style="font-size:1rem;margin-bottom:4px;">${escapeHtml(prog.title)}</h4>
-              <div style="font-size:0.78rem;color:var(--royal-600);font-weight:600;margin-bottom:8px;">
-                ${escapeHtml(prog.college)}
+              <h3 style="font-size:1.6rem;color:var(--royal-900);margin:0 0 8px;">${escapeHtml(app.fullName)}</h3>
+              <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+                <span style="font-size:0.88rem;color:var(--text-secondary);">
+                  Reference Number: <strong style="font-family:var(--font-mono);font-size:0.96rem;color:var(--royal-800);">${escapeHtml(app.referenceNumber)}</strong>
+                </span>
+                <button
+                  type="button"
+                  class="btn btn-sm btn-secondary copy-ref-btn"
+                  id="overviewCopyRefBtn"
+                  data-ref="${escapeHtml(app.referenceNumber)}"
+                  title="Copy reference number to clipboard"
+                  aria-label="Copy reference number ${escapeHtml(app.referenceNumber)}"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                  </svg>
+                  <span class="copy-btn-text">Copy Reference</span>
+                </button>
+                <span id="overviewCopyFeedback" class="copy-success-indicator" style="display:none;" role="status">Reference number copied!</span>
               </div>
-              <p style="font-size:0.84rem;color:var(--text-secondary);">${escapeHtml(
-                prog.description
-              )}</p>
             </div>
-            ${
-              !isDemoAccount
-                ? `<div style="padding-top:10px;border-top:1px solid var(--border-color);display:flex;justify-content:flex-end;">
-                    <button
-                      type="button"
-                      class="btn btn-sm btn-primary select-program-apply-btn"
-                      data-program="${escapeHtml(prog.title)}"
-                    >
-                      Apply for ${escapeHtml(prog.code)} &rarr;
-                    </button>
-                  </div>`
-                : ""
-            }
-          </div>
-        `
-        ).join("")}
-      </div>
 
-      <!-- Sample Admission Requirements & Application Instructions -->
-      <div class="dashboard-grid">
-        <div class="card">
-          <div class="card-header">
-            <h3 class="card-title">Basic Admission Requirements (Sample Information)</h3>
-            <span class="badge badge-neutral">Sample Checklist</span>
+            <div style="text-align:right;">
+              <span class="badge ${getStatusBadgeClass(app.status)}" style="font-size:0.92rem;padding:6px 16px;font-weight:700;">
+                Status: ${escapeHtml(app.status || "Pending")}
+              </span>
+              <div style="font-size:0.8rem;color:var(--text-muted);margin-top:6px;">
+                Submission Date: <strong>${escapeHtml(formatReadableDate(app.submittedDate))}</strong>
+              </div>
+            </div>
           </div>
-          <p style="font-size:0.84rem;color:var(--text-secondary);margin-bottom:12px;">
-            The items below represent <strong>sample demonstration checklist information</strong> for academic presentation purposes (no document uploads are required in this portal):
+
+          <!-- Status Explanation Callout -->
+          <div class="notice-banner" style="margin:16px 0 20px;">
+            <div>
+              <strong>Current Application Status &mdash; ${escapeHtml(app.status || "Pending")}:</strong>
+              ${escapeHtml(getStatusExplanation(app.status))}
+            </div>
+          </div>
+
+          <!-- Application Details Grid -->
+          <div class="form-grid" style="margin-top:14px;">
+            <div class="dash-list-item">
+              <div>
+                <div class="dash-item-sub">Selected First-Choice Program</div>
+                <div class="dash-item-title" style="color:var(--royal-700);font-weight:700;">${escapeHtml(app.desiredProgram)}</div>
+              </div>
+            </div>
+
+            <div class="dash-list-item">
+              <div>
+                <div class="dash-item-sub">Alternative Program (2nd Choice)</div>
+                <div class="dash-item-title">${escapeHtml(app.secondChoiceProgram || "None")}</div>
+              </div>
+            </div>
+
+            <div class="dash-list-item">
+              <div>
+                <div class="dash-item-sub">Applicant Full Name</div>
+                <div class="dash-item-title">${escapeHtml(app.fullName)}</div>
+              </div>
+            </div>
+
+            <div class="dash-list-item">
+              <div>
+                <div class="dash-item-sub">Date of Birth (MM/DD/YYYY)</div>
+                <div class="dash-item-title">${escapeHtml(formatDateMMDDYYYY(app.dateOfBirth))}</div>
+              </div>
+            </div>
+
+            <div class="dash-list-item">
+              <div>
+                <div class="dash-item-sub">Applying For Year Level</div>
+                <div class="dash-item-title"><span class="badge badge-primary">${escapeHtml(app.yearLevel || "Year 1")}</span></div>
+              </div>
+            </div>
+
+            <div class="dash-list-item">
+              <div>
+                <div class="dash-item-sub">Applicant Classification</div>
+                <div class="dash-item-title">${escapeHtml(app.applicantType)}</div>
+              </div>
+            </div>
+
+            <div class="dash-list-item">
+              <div>
+                <div class="dash-item-sub">Email Address</div>
+                <div class="dash-item-title" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                  <span>${escapeHtml(app.email)}</span>
+                  <span class="badge ${app.emailVerified ? 'badge-success' : 'badge-warning'}">
+                    ${app.emailVerified ? 'Email Verified' : 'Pending Verification'}
+                  </span>
+                  ${
+                    !app.emailVerified
+                      ? `<button type="button" class="btn btn-xs btn-outline-primary" id="overviewVerifyEmailBtn" style="padding:2px 8px;font-size:0.75rem;">Verify Email</button>`
+                      : ""
+                  }
+                </div>
+              </div>
+            </div>
+
+            <div class="dash-list-item">
+              <div>
+                <div class="dash-item-sub">Contact Number</div>
+                <div class="dash-item-title">${escapeHtml(app.contactNumber)}</div>
+              </div>
+            </div>
+
+            <div class="dash-list-item">
+              <div>
+                <div class="dash-item-sub">Previous School Attended</div>
+                <div class="dash-item-title">${escapeHtml(app.previousSchool)}</div>
+              </div>
+            </div>
+
+            <div class="dash-list-item">
+              <div>
+                <div class="dash-item-sub">Complete Home Address</div>
+                <div class="dash-item-title">${escapeHtml(app.address)}</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Actions -->
+          <div style="margin-top:22px;padding-top:16px;border-top:1px solid var(--border-color);display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap;">
+            <button type="button" class="btn btn-secondary" id="viewFullReceiptBtn">
+              View Full Confirmation Receipt
+            </button>
+            <button type="button" class="btn btn-secondary" id="printOverviewBtn">
+              Print Status Summary
+            </button>
+            <button type="button" class="btn btn-primary" id="newApplicationFromOverviewBtn">
+              + Submit Another Application
+            </button>
+          </div>
+        </div>
+      `
+          : `
+        <!-- Helpful Empty State: Prompting Applicant to Complete Form -->
+        <div class="card empty-state-card" style="text-align:center;padding:48px 24px;margin-bottom:24px;">
+          <div style="width:68px;height:68px;border-radius:50%;background:var(--royal-50);display:inline-flex;align-items:center;justify-content:center;margin-bottom:16px;">
+            <svg viewBox="0 0 24 24" width="34" height="34" stroke="currentColor" stroke-width="2" fill="none" style="color:var(--royal-600);">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+              <polyline points="14 2 14 8 20 8"></polyline>
+              <line x1="12" y1="18" x2="12" y2="12"></line>
+              <line x1="9" y1="15" x2="15" y2="15"></line>
+            </svg>
+          </div>
+          <h3 style="font-size:1.45rem;color:var(--royal-900);margin-bottom:8px;">No Application Submitted Yet</h3>
+          <p style="font-size:0.95rem;color:var(--text-secondary);max-width:580px;margin:0 auto 22px;line-height:1.55;">
+            Welcome to BANTUG UNIVERSITY Admissions. You have not submitted an admission application yet. To apply for freshman admission, please review our degree programs below and fill out the online application form.
           </p>
-          <div class="dash-list">
-            <div class="dash-list-item">
-              <div>
-                <div class="dash-item-title">1. Completed Online Application Form</div>
-                <div class="dash-item-sub">Personal, contact, year level (Year 1–Year 4), and educational background details filled out in the Applicant Portal.</div>
-              </div>
-              <span class="badge badge-info">Required in Form</span>
-            </div>
-            <div class="dash-list-item">
-              <div>
-                <div class="dash-item-title">2. Senior High School Report Card / Academic Record (Sample)</div>
-                <div class="dash-item-sub">For incoming Year 1 applicants (or Transcript of Records for Year 2–Year 4 transferees).</div>
-              </div>
-              <span class="badge badge-neutral">Sample Info</span>
-            </div>
-            <div class="dash-list-item">
-              <div>
-                <div class="dash-item-title">3. Certificate of Good Moral Character (Sample)</div>
-                <div class="dash-item-sub">Issued by the applicant's previous school guidance or principal's office.</div>
-              </div>
-              <span class="badge badge-neutral">Sample Info</span>
-            </div>
-            <div class="dash-list-item">
-              <div>
-                <div class="dash-item-title">4. Application Submission Confirmation</div>
-                <div class="dash-item-sub">A confirmation receipt with your generated <code>BU-ADM-...</code> reference number is displayed upon submitting the form.</div>
-              </div>
-              <span class="badge badge-success">Auto-Generated</span>
-            </div>
+          <button type="button" class="btn btn-primary btn-lg" id="emptyStateApplyBtn" style="padding:10px 26px;font-size:0.95rem;">
+            Complete Application Form &rarr;
+          </button>
+        </div>
+
+        <!-- Available Academic Degree Programs -->
+        <div class="section-header" style="margin-bottom:14px;">
+          <div class="section-header-info">
+            <h3 style="font-size:1.2rem;">Available Academic Degree Programs</h3>
+            <p>Review our 4-year undergraduate degree programs (Year 1 to Year 4) below.</p>
           </div>
         </div>
 
-        <div class="card">
-          <div class="card-header">
-            <h3 class="card-title">Step-by-Step Application Instructions</h3>
-            <span class="badge badge-primary">3 Easy Steps</span>
-          </div>
-          <div class="dash-list">
-            <div class="dash-list-item">
-              <div class="dash-item-left">
-                <div class="time-pill" style="min-width:68px;">Step 1</div>
-                <div>
-                  <div class="dash-item-title">Choose Your Desired Program &amp; Year Level</div>
-                  <div class="dash-item-sub">Review the BANTUG UNIVERSITY degree offerings above and select your entry year level (Year 1 to Year 4).</div>
+        <div class="programs-grid">
+          ${AVAILABLE_PROGRAMS.map(
+            (prog) => `
+            <div class="program-card ${prog.featured ? "featured-program" : ""}">
+              <div>
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px;">
+                  <span class="badge ${prog.featured ? "badge-primary" : "badge-info"}">${escapeHtml(prog.code)}</span>
+                  <span style="font-size:0.76rem;color:var(--text-muted);font-weight:600;">${escapeHtml(prog.duration)}</span>
                 </div>
+                <h4 style="font-size:1rem;margin-bottom:4px;">${escapeHtml(prog.title)}</h4>
+                <div style="font-size:0.78rem;color:var(--royal-600);font-weight:600;margin-bottom:8px;">
+                  ${escapeHtml(prog.college)}
+                </div>
+                <p style="font-size:0.84rem;color:var(--text-secondary);">${escapeHtml(prog.description)}</p>
+              </div>
+              <div style="padding-top:10px;border-top:1px solid var(--border-color);display:flex;justify-content:flex-end;">
+                <button
+                  type="button"
+                  class="btn btn-sm btn-primary select-program-apply-btn"
+                  data-program="${escapeHtml(prog.title)}"
+                >
+                  Apply for ${escapeHtml(prog.code)} &rarr;
+                </button>
               </div>
             </div>
-            <div class="dash-list-item">
-              <div class="dash-item-left">
-                <div class="time-pill" style="min-width:68px;">Step 2</div>
-                <div>
-                  <div class="dash-item-title">Complete the Registration &amp; Application Form</div>
-                  <div class="dash-item-sub">Provide your name, date of birth, contact details, desired program, year level, and previous school information.</div>
-                </div>
-              </div>
-            </div>
-            <div class="dash-list-item">
-              <div class="dash-item-left">
-                <div class="time-pill" style="min-width:68px;">Step 3</div>
-                <div>
-                  <div class="dash-item-title">Receive Your Submission Confirmation</div>
-                  <div class="dash-item-sub">Submit your application to receive your official submission confirmation and reference number.</div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          ${
-            !isDemoAccount
-              ? `<div style="margin-top:18px;display:flex;justify-content:flex-end;gap:10px;">
-                  <button type="button" class="btn btn-primary" data-app-nav="applicant-form">
-                    Proceed to Application Form &rarr;
-                  </button>
-                </div>`
-              : ""
-          }
+          `
+          ).join("")}
         </div>
-      </div>
+      `
+      }
     `;
 
+    // Tab and Navigation Links
     container.querySelectorAll("[data-app-nav]").forEach((btn) => {
       btn.addEventListener("click", () => navigateTo(btn.getAttribute("data-app-nav")));
     });
+
+    const emptyApplyBtn = document.getElementById("emptyStateApplyBtn");
+    if (emptyApplyBtn) {
+      emptyApplyBtn.addEventListener("click", () => {
+        preselectedProgram = "";
+        navigateTo("applicant-form");
+      });
+    }
 
     container.querySelectorAll(".select-program-apply-btn").forEach((btn) => {
       btn.addEventListener("click", () => {
         preselectedProgram = btn.getAttribute("data-program");
         lastSubmittedConfirmation = null;
+        try {
+          sessionStorage.removeItem("bu_last_submitted_app");
+        } catch (_) {}
         navigateTo("applicant-form");
       });
     });
+
+    // Copy reference button on overview
+    const copyRefBtn = document.getElementById("overviewCopyRefBtn");
+    const copyFeedback = document.getElementById("overviewCopyFeedback");
+    if (copyRefBtn && app) {
+      copyRefBtn.addEventListener("click", async () => {
+        const refToCopy = copyRefBtn.getAttribute("data-ref") || app.referenceNumber;
+        await copyReferenceNumberToClipboard(refToCopy, copyRefBtn, copyFeedback);
+      });
+    }
+
+    // View full confirmation receipt
+    const viewReceiptBtn = document.getElementById("viewFullReceiptBtn");
+    if (viewReceiptBtn && app) {
+      viewReceiptBtn.addEventListener("click", () => {
+        lastSubmittedConfirmation = app;
+        try {
+          sessionStorage.setItem("bu_last_submitted_app", JSON.stringify(app));
+        } catch (_) {}
+        navigateTo("applicant-form");
+      });
+    }
+
+    // Print summary
+    const printBtn = document.getElementById("printOverviewBtn");
+    if (printBtn) {
+      printBtn.addEventListener("click", () => {
+        window.print();
+      });
+    }
+
+    // Account Preferences / Details button on overview
+    const accountDetailsBtn = document.getElementById("applicantAccountDetailsBtn");
+    if (accountDetailsBtn) {
+      accountDetailsBtn.addEventListener("click", openApplicantAccountModal);
+    }
+
+    // Verify Email button on overview
+    const verifyEmailBtn = document.getElementById("overviewVerifyEmailBtn");
+    if (verifyEmailBtn && app) {
+      verifyEmailBtn.addEventListener("click", () => {
+        openEmailOtpModal(app.email, app.referenceNumber, app.fullName);
+      });
+    }
+
+    // Submit another application
+    const newAppBtn = document.getElementById("newApplicationFromOverviewBtn");
+    if (newAppBtn) {
+      newAppBtn.addEventListener("click", () => {
+        lastSubmittedConfirmation = null;
+        preselectedProgram = "";
+        try {
+          sessionStorage.removeItem("bu_last_submitted_app");
+        } catch (_) {}
+        navigateTo("applicant-form");
+      });
+    }
   }
 
   /**
    * 2. APPLICANT REGISTRATION & APPLICATION FORM
-   * Shows ONLY a submission confirmation after submitting an application.
-   * Does NOT display an application status dashboard or status-tracking section.
+   * Displays the clean, professional Application Confirmation Receipt upon successful submission.
+   * Does not display repetitive technical database messages.
    */
   function renderForm() {
     const container = document.getElementById("applicantFormContainer");
     if (!container) return;
 
-    const validYears = StudentHubStorage.VALID_YEAR_LEVELS; // ["Year 1", "Year 2", "Year 3", "Year 4"]
+    // Retrieve saved confirmation from session storage to prevent reference number re-generation on refresh
+    if (!lastSubmittedConfirmation) {
+      try {
+        const cached = sessionStorage.getItem("bu_last_submitted_app");
+        if (cached) {
+          lastSubmittedConfirmation = JSON.parse(cached);
+        }
+      } catch (_) {}
+    }
 
     if (lastSubmittedConfirmation) {
       const c = lastSubmittedConfirmation;
       container.innerHTML = `
         <div class="section-header">
           <div class="section-header-info">
-            <h2>BANTUG UNIVERSITY &mdash; Application Submission Confirmation</h2>
-            <p>Your online admission application has been submitted successfully.</p>
+            <h2>BANTUG UNIVERSITY &mdash; Application Confirmation Receipt</h2>
+            <p>Your online admission application has been successfully received.</p>
           </div>
           <div class="section-header-actions">
+            <button type="button" class="btn btn-secondary" id="printAppReceiptBtn" title="Print this confirmation receipt">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:5px;vertical-align:text-bottom;">
+                <polyline points="6 9 6 2 18 2 18 9"></polyline>
+                <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>
+                <rect x="6" y="14" width="12" height="8"></rect>
+              </svg>
+              Print Receipt
+            </button>
             <button type="button" class="btn btn-secondary" id="backToProgramsAfterSubmitBtn">
               &larr; Back to Admissions Overview
             </button>
@@ -325,66 +781,163 @@ const StudentHubApplicant = (function () {
           </div>
         </div>
 
-        <div class="card" style="max-width:740px;margin:0 auto;text-align:center;padding:32px 24px;">
+        <div class="card" style="max-width:760px;margin:0 auto;text-align:center;padding:34px 26px;">
           <div style="margin-bottom:14px;">
-            <span class="badge badge-success" style="font-size:0.9rem;padding:8px 18px;">
-              Application Submitted Successfully
+            <span class="badge badge-success" style="font-size:0.92rem;padding:8px 20px;font-weight:700;">
+              Application Submitted Successfully!
             </span>
           </div>
-          <h3 style="font-size:1.45rem;margin-bottom:8px;">
+
+          <h3 style="font-size:1.5rem;margin-bottom:8px;color:var(--royal-900);">
             Thank you for applying to BANTUG UNIVERSITY, ${escapeHtml(c.fullName)}!
           </h3>
-          <p style="font-size:0.92rem;color:var(--text-secondary);max-width:560px;margin:0 auto 20px;">
-            Your application form has been received and permanently recorded in the <strong>BANTUG UNIVERSITY MySQL Database (<code>bantug_university_db</code>)</strong> with initial status <strong>Pending</strong>. Please keep your reference details below for your records.
+
+          <p style="font-size:0.96rem;color:var(--text-secondary);max-width:600px;margin:0 auto 22px;line-height:1.5;">
+            Your application has been successfully received. Your current application status is <strong>Pending</strong>.
           </p>
 
-          <div class="calc-result-box" style="margin-bottom:22px;padding:18px;">
-            <div style="font-size:0.78rem;text-transform:uppercase;color:var(--text-secondary);font-weight:700;">
-              Confirmation Reference Number
+          <!-- Clean Professional Reference Box -->
+          <div class="confirmation-ref-box">
+            <div class="ref-box-eyebrow">Application Reference Number</div>
+            <div class="ref-box-number" id="appRefNumberVal">${escapeHtml(c.referenceNumber)}</div>
+            <div class="ref-box-actions">
+              <button
+                type="button"
+                class="btn btn-primary copy-ref-btn"
+                id="copyRefNumBtn"
+                data-ref="${escapeHtml(c.referenceNumber)}"
+                aria-label="Copy application reference number ${escapeHtml(c.referenceNumber)}"
+                title="Copy reference number to clipboard"
+              >
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:6px;vertical-align:text-bottom;">
+                  <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                </svg>
+                <span class="copy-btn-text">Copy Reference Number</span>
+              </button>
+              <span id="copyFeedbackIndicator" class="copy-success-indicator" style="display:none;" role="status">Reference number copied!</span>
             </div>
-            <div class="calc-score" style="font-size:1.75rem;margin:6px 0;">
-              ${escapeHtml(c.referenceNumber)}
-            </div>
-            <div style="font-size:0.84rem;color:var(--text-secondary);">
-              Submitted on ${escapeHtml(formatReadableDate(c.submittedDate))}
+            <p class="ref-box-notice">
+              Please keep your reference number. You may use it to track your application status or when contacting the university regarding your application.
+            </p>
+            <div class="ref-box-meta">
+              Submitted on ${escapeHtml(formatReadableDate(c.submittedDate))} &bull; Application Status: <strong>Pending</strong>
             </div>
           </div>
 
-          <div class="form-grid" style="text-align:left;margin-bottom:22px;">
+          <!-- Email Verification Section on Confirmation Receipt -->
+          <div class="card" style="margin:20px 0;background:#f8fafc;border:1px solid ${c.emailVerified ? '#86efac' : '#cbd5e1'};text-align:left;">
+            <div class="card-header" style="border-bottom:1px solid #e2e8f0;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;">
+              <span style="font-weight:700;color:var(--text-dark);font-size:0.95rem;">
+                Email Address Verification
+              </span>
+              <span id="receiptVerificationStatusBadge" class="badge ${c.emailVerified ? 'badge-success' : 'badge-warning'}">
+                ${c.emailVerified ? '&#10003; Verified' : 'Pending Verification'}
+              </span>
+            </div>
+            <div class="card-body" style="padding:16px;">
+              ${
+                c.emailVerified
+                  ? `<p style="margin:0;font-size:0.9rem;color:#166534;font-weight:500;">
+                      &#10003; Email address <strong>${escapeHtml(c.email)}</strong> has been successfully verified. Official admission notifications and enrollment updates will be delivered here.
+                    </p>`
+                  : `<p style="margin:0 0 12px 0;font-size:0.88rem;color:var(--text-muted);">
+                      A 6-digit one-time verification code (OTP) was sent to <strong>${escapeHtml(c.email)}</strong>. Enter the 6-digit code below to confirm email ownership.
+                    </p>
+                    <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;">
+                      <input
+                        type="text"
+                        id="receiptOtpInput"
+                        class="form-control"
+                        placeholder="000000"
+                        maxlength="6"
+                        inputmode="numeric"
+                        autocomplete="one-time-code"
+                        style="width:160px;font-size:1.15rem;letter-spacing:4px;text-align:center;font-weight:700;"
+                      />
+                      <button type="button" class="btn btn-primary" id="receiptVerifyOtpBtn">Verify Email</button>
+                      <button type="button" class="btn btn-secondary" id="receiptResendOtpBtn">Resend Code</button>
+                      <span id="receiptResendTimer" style="font-size:0.82rem;color:var(--text-muted);"></span>
+                    </div>
+                    <div id="receiptOtpFeedback" style="margin-top:10px;font-size:0.85rem;display:none;"></div>`
+              }
+            </div>
+          </div>
+
+          <!-- Submitted Information Summary Grid -->
+          <div class="form-grid" style="text-align:left;margin-bottom:24px;">
             <div class="dash-list-item">
               <div>
                 <div class="dash-item-sub">Applicant Full Name</div>
                 <div class="dash-item-title">${escapeHtml(c.fullName)}</div>
               </div>
             </div>
+
+            <div class="dash-list-item">
+              <div>
+                <div class="dash-item-sub">Date of Birth (MM/DD/YYYY)</div>
+                <div class="dash-item-title">${escapeHtml(formatDateMMDDYYYY(c.dateOfBirth))}</div>
+              </div>
+            </div>
+
             <div class="dash-list-item">
               <div>
                 <div class="dash-item-sub">Applying For Year Level</div>
-                <div class="dash-item-title">${escapeHtml(c.yearLevel)}</div>
+                <div class="dash-item-title"><span class="badge badge-primary">${escapeHtml(c.yearLevel || "Year 1")}</span></div>
               </div>
             </div>
+
             <div class="dash-list-item">
               <div>
                 <div class="dash-item-sub">Desired Academic Program (1st Choice)</div>
                 <div class="dash-item-title">${escapeHtml(c.desiredProgram)}</div>
               </div>
             </div>
+
+            <div class="dash-list-item">
+              <div>
+                <div class="dash-item-sub">Alternative Program (2nd Choice)</div>
+                <div class="dash-item-title">${escapeHtml(c.secondChoiceProgram || "None")}</div>
+              </div>
+            </div>
+
             <div class="dash-list-item">
               <div>
                 <div class="dash-item-sub">Applicant Classification</div>
                 <div class="dash-item-title">${escapeHtml(c.applicantType)}</div>
               </div>
             </div>
+
             <div class="dash-list-item">
               <div>
-                <div class="dash-item-sub">Email &amp; Contact Number</div>
-                <div class="dash-item-title">${escapeHtml(c.email)} &bull; ${escapeHtml(c.contactNumber)}</div>
+                <div class="dash-item-sub">Email Address</div>
+                <div class="dash-item-title" style="display:flex;align-items:center;gap:8px;">
+                  <span>${escapeHtml(c.email)}</span>
+                  <span class="badge ${c.emailVerified ? 'badge-success' : 'badge-warning'}" style="font-size:0.75rem;">
+                    ${c.emailVerified ? '&#10003; Verified' : 'Pending Verification'}
+                  </span>
+                </div>
               </div>
             </div>
+
+            <div class="dash-list-item">
+              <div>
+                <div class="dash-item-sub">Contact Number</div>
+                <div class="dash-item-title">${escapeHtml(c.contactNumber)}</div>
+              </div>
+            </div>
+
             <div class="dash-list-item">
               <div>
                 <div class="dash-item-sub">Previous School Attended</div>
                 <div class="dash-item-title">${escapeHtml(c.previousSchool)} (${escapeHtml(c.graduationYear)})</div>
+              </div>
+            </div>
+
+            <div class="dash-list-item">
+              <div>
+                <div class="dash-item-sub">Educational Background / Track</div>
+                <div class="dash-item-title">${escapeHtml(c.educationalBackground)}</div>
               </div>
             </div>
           </div>
@@ -400,89 +953,310 @@ const StudentHubApplicant = (function () {
         </div>
       `;
 
+      // Copy Reference Number handler
+      const copyBtn = document.getElementById("copyRefNumBtn");
+      const copyIndicator = document.getElementById("copyFeedbackIndicator");
+      if (copyBtn) {
+        copyBtn.addEventListener("click", async () => {
+          const refToCopy = copyBtn.getAttribute("data-ref") || c.referenceNumber;
+          await copyReferenceNumberToClipboard(refToCopy, copyBtn, copyIndicator);
+        });
+      }
+
+      // Print Receipt handler
+      const printBtn = document.getElementById("printAppReceiptBtn");
+      if (printBtn) {
+        printBtn.addEventListener("click", () => {
+          window.print();
+        });
+      }
+
+      // Receipt OTP Verification Handlers
+      const receiptOtpInput = document.getElementById("receiptOtpInput");
+      const receiptVerifyBtn = document.getElementById("receiptVerifyOtpBtn");
+      const receiptResendBtn = document.getElementById("receiptResendOtpBtn");
+      const receiptResendTimer = document.getElementById("receiptResendTimer");
+      const receiptFeedback = document.getElementById("receiptOtpFeedback");
+
+      let receiptCooldown = 0;
+      let receiptInterval = null;
+
+      const startReceiptCooldown = (seconds = 60) => {
+        receiptCooldown = seconds;
+        if (receiptResendBtn) receiptResendBtn.disabled = true;
+        if (receiptResendTimer) receiptResendTimer.textContent = `Wait ${receiptCooldown}s to resend`;
+
+        if (receiptInterval) clearInterval(receiptInterval);
+        receiptInterval = setInterval(() => {
+          receiptCooldown -= 1;
+          if (receiptCooldown <= 0) {
+            clearInterval(receiptInterval);
+            receiptInterval = null;
+            if (receiptResendBtn) receiptResendBtn.disabled = false;
+            if (receiptResendTimer) receiptResendTimer.textContent = "";
+          } else {
+            if (receiptResendTimer) receiptResendTimer.textContent = `Wait ${receiptCooldown}s to resend`;
+          }
+        }, 1000);
+      };
+
+      if (receiptVerifyBtn && receiptOtpInput) {
+        receiptVerifyBtn.addEventListener("click", async () => {
+          const code = String(receiptOtpInput.value || "").trim();
+          if (receiptFeedback) receiptFeedback.style.display = "none";
+
+          if (!code || !/^\d{6}$/.test(code)) {
+            if (receiptFeedback) {
+              receiptFeedback.textContent = "Please enter a valid 6-digit numeric verification code.";
+              receiptFeedback.style.color = "#dc2626";
+              receiptFeedback.style.display = "block";
+            }
+            return;
+          }
+
+          receiptVerifyBtn.disabled = true;
+          receiptVerifyBtn.textContent = "Verifying...";
+
+          try {
+            const res = await fetch("/api/otp/verify", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                email: c.email,
+                otp: code,
+                purpose: "applicant_email_verification",
+                referenceId: c.referenceNumber
+              })
+            });
+
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok || !data.ok) {
+              receiptVerifyBtn.disabled = false;
+              receiptVerifyBtn.textContent = "Verify Email";
+              if (receiptFeedback) {
+                receiptFeedback.textContent = data.message || "Invalid or expired verification code.";
+                receiptFeedback.style.color = "#dc2626";
+                receiptFeedback.style.display = "block";
+              }
+              return;
+            }
+
+            // Successfully verified!
+            c.emailVerified = true;
+            if (lastSubmittedConfirmation) {
+              lastSubmittedConfirmation.emailVerified = true;
+              try {
+                sessionStorage.setItem("bu_last_submitted_app", JSON.stringify(lastSubmittedConfirmation));
+              } catch (_) {}
+            }
+            try {
+              const sess = StudentHubStorage.getSession();
+              if (sess) {
+                sess.emailVerified = true;
+                StudentHubStorage.setSession(sess);
+              }
+            } catch (_) {}
+
+            showToast("Email address successfully verified!", "success");
+            renderForm(); // Re-renders confirmation receipt in verified state
+          } catch (_) {
+            receiptVerifyBtn.disabled = false;
+            receiptVerifyBtn.textContent = "Verify Email";
+            if (receiptFeedback) {
+              receiptFeedback.textContent = "Network error. Please try again.";
+              receiptFeedback.style.color = "#dc2626";
+              receiptFeedback.style.display = "block";
+            }
+          }
+        });
+      }
+
+      if (receiptResendBtn) {
+        receiptResendBtn.addEventListener("click", async () => {
+          if (receiptCooldown > 0) return;
+          if (receiptFeedback) receiptFeedback.style.display = "none";
+          receiptResendBtn.disabled = true;
+
+          try {
+            const res = await fetch("/api/otp/request", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                email: c.email,
+                purpose: "applicant_email_verification",
+                referenceId: c.referenceNumber,
+                recipientName: c.fullName
+              })
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok || !data.ok) {
+              if (data.cooldownRemaining) {
+                startReceiptCooldown(data.cooldownRemaining);
+              }
+              if (receiptFeedback) {
+                receiptFeedback.textContent = data.message || "Failed to resend verification code.";
+                receiptFeedback.style.color = "#dc2626";
+                receiptFeedback.style.display = "block";
+              }
+              showToast(data.message || "Unable to resend code at this time.", "error");
+              return;
+            }
+
+            showToast("A new 6-digit verification code has been dispatched to your email.", "success");
+            startReceiptCooldown(data.cooldownSeconds || 60);
+          } catch (_) {
+            if (receiptFeedback) {
+              receiptFeedback.textContent = "Network error. Please try again.";
+              receiptFeedback.style.color = "#dc2626";
+              receiptFeedback.style.display = "block";
+            }
+            receiptResendBtn.disabled = false;
+          }
+        });
+      }
+
+      const clearSessionAndReturn = () => {
+        try {
+          sessionStorage.removeItem("bu_last_submitted_app");
+        } catch (_) {}
+        lastSubmittedConfirmation = null;
+        navigateTo("applicant-landing");
+      };
+
+      const clearSessionAndNewForm = () => {
+        try {
+          sessionStorage.removeItem("bu_last_submitted_app");
+        } catch (_) {}
+        lastSubmittedConfirmation = null;
+        renderForm();
+      };
+
       const backProgramsBtn = document.getElementById("backToProgramsAfterSubmitBtn");
-      if (backProgramsBtn) {
-        backProgramsBtn.addEventListener("click", () => {
-          lastSubmittedConfirmation = null;
-          navigateTo("applicant-landing");
-        });
-      }
+      if (backProgramsBtn) backProgramsBtn.addEventListener("click", clearSessionAndReturn);
+
       const returnOverviewBtn = document.getElementById("confirmReturnOverviewBtn");
-      if (returnOverviewBtn) {
-        returnOverviewBtn.addEventListener("click", () => {
-          lastSubmittedConfirmation = null;
-          navigateTo("applicant-landing");
-        });
-      }
+      if (returnOverviewBtn) returnOverviewBtn.addEventListener("click", clearSessionAndReturn);
+
       const newAppBtn1 = document.getElementById("submitAnotherNewAppBtn");
-      if (newAppBtn1) {
-        newAppBtn1.addEventListener("click", () => {
-          lastSubmittedConfirmation = null;
-          renderForm();
-        });
-      }
+      if (newAppBtn1) newAppBtn1.addEventListener("click", clearSessionAndNewForm);
+
       const newAppBtn2 = document.getElementById("confirmNewBlankFormBtn");
-      if (newAppBtn2) {
-        newAppBtn2.addEventListener("click", () => {
-          lastSubmittedConfirmation = null;
-          renderForm();
-        });
-      }
+      if (newAppBtn2) newAppBtn2.addEventListener("click", clearSessionAndNewForm);
+
       return;
     }
 
     container.innerHTML = `
+      <!-- Responsive Applicant Navigation Tabs -->
+      <div class="applicant-nav-tabs">
+        <button type="button" class="applicant-tab-btn" data-app-nav="applicant-landing">
+          <svg viewBox="0 0 24 24" width="17" height="17" stroke="currentColor" stroke-width="2" fill="none">
+            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+            <polyline points="9 22 9 12 15 12 15 22"></polyline>
+          </svg>
+          <span>Admission Overview</span>
+        </button>
+        <button type="button" class="applicant-tab-btn active" data-app-nav="applicant-form">
+          <svg viewBox="0 0 24 24" width="17" height="17" stroke="currentColor" stroke-width="2" fill="none">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+            <polyline points="14 2 14 8 20 8"></polyline>
+            <line x1="12" y1="18" x2="12" y2="12"></line>
+            <line x1="9" y1="15" x2="15" y2="15"></line>
+          </svg>
+          <span>Application Form</span>
+        </button>
+      </div>
+
       <div class="section-header">
         <div class="section-header-info">
-          <h2>BANTUG UNIVERSITY &mdash; Online Application &amp; Registration Form</h2>
+          <h2>Online Application Form</h2>
           <p>Complete all required fields (*) below to submit your admission application.</p>
         </div>
         <div class="section-header-actions">
-          <button type="button" class="btn btn-secondary" id="backToLandingBtn">
-            &larr; Back to Programs
+          <button type="button" class="btn btn-secondary" data-app-nav="applicant-landing">
+            &larr; Back to Admission Overview
           </button>
         </div>
       </div>
 
       <div class="notice-banner">
         <div>
-          <strong>Database Persistence Notice:</strong> Your application entry is validated and saved directly to the <strong>BANTUG UNIVERSITY MySQL Database (<code>bantug_university_db.applications</code>)</strong> with initial status <code>Pending</code>. Upon database confirmation, you will receive an official application confirmation receipt.
+          <strong>Application Instructions:</strong> Please ensure all personal, contact, and academic details provided are complete and accurate. All fields marked with (*) are required. Upon submission, an official application confirmation receipt with your unique reference number will be generated.
         </div>
       </div>
 
       <div class="card">
         <div class="card-header">
           <h3 class="card-title">Applicant Personal, Contact &amp; Academic Information</h3>
-          <span class="badge badge-primary">AY 2026–2027 Admissions</span>
+          <span class="badge badge-primary">Undergraduate Admissions</span>
         </div>
 
         <form id="universityApplicationForm" novalidate>
           <div class="form-grid">
-            <!-- Personal Information -->
-            <div class="form-group">
-              <label class="form-label" for="appFullName">Full Name (Last, First, Middle) <span class="req">*</span></label>
-              <input
-                type="text"
-                id="appFullName"
-                name="fullName"
-                class="form-control"
-                placeholder="e.g. Dela Cruz, Maria Clara"
-              />
-              <div class="field-error" data-error-for="fullName"></div>
+            <!-- 1. Applicant Name Validation: Last Name, First Name, Middle Name -->
+            <div class="form-group full-width">
+              <div class="name-grid-3">
+                <div class="form-group-sub">
+                  <label class="form-label" for="appLastName">Last Name <span class="req">*</span></label>
+                  <input
+                    type="text"
+                    id="appLastName"
+                    name="lastName"
+                    class="form-control"
+                    placeholder="e.g. Dela Cruz"
+                    autocomplete="family-name"
+                    value=""
+                  />
+                  <div class="field-error" data-error-for="lastName"></div>
+                </div>
+
+                <div class="form-group-sub">
+                  <label class="form-label" for="appFirstName">First Name <span class="req">*</span></label>
+                  <input
+                    type="text"
+                    id="appFirstName"
+                    name="firstName"
+                    class="form-control"
+                    placeholder="e.g. Maria Clara"
+                    autocomplete="given-name"
+                    value=""
+                  />
+                  <div class="field-error" data-error-for="firstName"></div>
+                </div>
+
+                <div class="form-group-sub">
+                  <label class="form-label" for="appMiddleName">Middle Name <span style="font-size:0.75rem;color:var(--text-muted);font-weight:normal;">(Optional)</span></label>
+                  <input
+                    type="text"
+                    id="appMiddleName"
+                    name="middleName"
+                    class="form-control"
+                    placeholder="e.g. Santos"
+                    autocomplete="additional-name"
+                    value=""
+                  />
+                  <div class="field-error" data-error-for="middleName"></div>
+                </div>
+              </div>
             </div>
 
+            <!-- 2. Date of Birth (Strict MM/DD/YYYY Format - Starts Empty) -->
             <div class="form-group">
-              <label class="form-label" for="appDob">Date of Birth <span class="req">*</span></label>
+              <label class="form-label" for="appDob">Date of Birth (MM/DD/YYYY) <span class="req">*</span></label>
               <input
-                type="date"
+                type="text"
                 id="appDob"
                 name="dateOfBirth"
                 class="form-control"
-                value="2007-06-15"
+                placeholder="MM/DD/YYYY"
+                maxlength="10"
+                value=""
               />
+              <small class="form-hint">Format: MM/DD/YYYY (e.g. 09/12/2007)</small>
               <div class="field-error" data-error-for="dateOfBirth"></div>
             </div>
 
+            <!-- Email Address -->
             <div class="form-group">
               <label class="form-label" for="appEmail">Email Address <span class="req">*</span></label>
               <input
@@ -490,23 +1264,34 @@ const StudentHubApplicant = (function () {
                 id="appEmail"
                 name="email"
                 class="form-control"
-                placeholder="applicant.sample@email.example"
+                placeholder="e.g. applicant@email.example"
+                autocomplete="email"
+                value=""
               />
               <div class="field-error" data-error-for="email"></div>
             </div>
 
+            <!-- 3. Philippine Contact Number with Fixed +63 Prefix -->
             <div class="form-group">
-              <label class="form-label" for="appContact">Contact Number <span class="req">*</span></label>
-              <input
-                type="tel"
-                id="appContact"
-                name="contactNumber"
-                class="form-control"
-                placeholder="+63 917 555 0123"
-              />
+              <label class="form-label" for="appContact">Contact Number (Philippines) <span class="req">*</span></label>
+              <div class="input-prefix-group">
+                <span class="input-fixed-prefix">+63</span>
+                <input
+                  type="tel"
+                  id="appContact"
+                  name="contactNumber"
+                  class="form-control"
+                  placeholder="9175550123"
+                  maxlength="10"
+                  autocomplete="tel-national"
+                  value=""
+                />
+              </div>
+              <small class="form-hint">Fixed +63 prefix. Enter remaining 10 digits starting with 9.</small>
               <div class="field-error" data-error-for="contactNumber"></div>
             </div>
 
+            <!-- Complete Home Address -->
             <div class="form-group full-width">
               <label class="form-label" for="appAddress">Complete Home Address <span class="req">*</span></label>
               <input
@@ -515,14 +1300,17 @@ const StudentHubApplicant = (function () {
                 name="address"
                 class="form-control"
                 placeholder="Street, Barangay, City/Municipality, Province"
+                autocomplete="street-address"
+                value=""
               />
               <div class="field-error" data-error-for="address"></div>
             </div>
 
-            <!-- Academic & Program Information -->
+            <!-- 4. Academic & Program Information -->
             <div class="form-group">
               <label class="form-label" for="appDesiredProgram">Desired Academic Program (1st Choice) <span class="req">*</span></label>
               <select id="appDesiredProgram" name="desiredProgram" class="form-control">
+                <option value="" disabled ${!preselectedProgram ? "selected" : ""}>-- Select Desired Academic Program (1st Choice) --</option>
                 ${AVAILABLE_PROGRAMS.map(
                   (p) =>
                     `<option value="${escapeHtml(p.title)}" ${
@@ -533,10 +1321,11 @@ const StudentHubApplicant = (function () {
               <div class="field-error" data-error-for="desiredProgram"></div>
             </div>
 
+            <!-- 5. Alternative Program (2nd Choice - Must be Different from 1st Choice) -->
             <div class="form-group">
               <label class="form-label" for="appSecondProgram">Alternative Program (2nd Choice)</label>
               <select id="appSecondProgram" name="secondChoiceProgram" class="form-control">
-                <option value="None">None / Not Applicable</option>
+                <option value="None" selected>None / Not Applicable</option>
                 ${AVAILABLE_PROGRAMS.map(
                   (p) => `<option value="${escapeHtml(p.title)}">${escapeHtml(p.title)}</option>`
                 ).join("")}
@@ -544,19 +1333,27 @@ const StudentHubApplicant = (function () {
               <div class="field-error" data-error-for="secondChoiceProgram"></div>
             </div>
 
+            <!-- 6. Applying For Year Level (Strictly Year 1 for Applicants) -->
             <div class="form-group">
               <label class="form-label" for="appYearLevel">Applying For Year Level <span class="req">*</span></label>
-              <select id="appYearLevel" name="yearLevel" class="form-control">
-                ${validYears
-                  .map((yr) => `<option value="${escapeHtml(yr)}">${escapeHtml(yr)}</option>`)
-                  .join("")}
-              </select>
+              <input
+                type="text"
+                id="appYearLevel"
+                name="yearLevel"
+                class="form-control"
+                value="Year 1"
+                readonly
+                style="background:var(--bg-surface-alt);cursor:not-allowed;font-weight:600;color:var(--royal-700);"
+              />
+              <small class="form-hint">Admissions are strictly open for incoming freshman (Year 1) applicants.</small>
               <div class="field-error" data-error-for="yearLevel"></div>
             </div>
 
+            <!-- Applicant Classification -->
             <div class="form-group">
               <label class="form-label" for="appType">Applicant Classification <span class="req">*</span></label>
               <select id="appType" name="applicantType" class="form-control">
+                <option value="" disabled selected>-- Select Applicant Classification --</option>
                 <option value="Senior High School Graduate / Freshman">Senior High School Graduate / Freshman</option>
                 <option value="College Transferee">College Transferee</option>
                 <option value="Second Degree Applicant">Second Degree Applicant</option>
@@ -564,6 +1361,7 @@ const StudentHubApplicant = (function () {
               <div class="field-error" data-error-for="applicantType"></div>
             </div>
 
+            <!-- Previous School Attended -->
             <div class="form-group">
               <label class="form-label" for="appPrevSchool">Previous School Attended <span class="req">*</span></label>
               <input
@@ -572,24 +1370,28 @@ const StudentHubApplicant = (function () {
                 name="previousSchool"
                 class="form-control"
                 placeholder="e.g. Bantug National High School"
+                value=""
               />
               <div class="field-error" data-error-for="previousSchool"></div>
             </div>
 
+            <!-- 7. Year Graduated / Completed (Strictly 4 Digits, No Decimals - Starts Empty) -->
             <div class="form-group">
               <label class="form-label" for="appGradYear">Year Graduated / Completed <span class="req">*</span></label>
               <input
-                type="number"
+                type="text"
                 id="appGradYear"
                 name="graduationYear"
                 class="form-control"
-                min="1990"
-                max="2030"
-                value="2026"
+                placeholder="YYYY (e.g. 2026)"
+                maxlength="4"
+                value=""
               />
+              <small class="form-hint">Must be exactly 4 numerical digits (e.g. 2026). Decimals not allowed.</small>
               <div class="field-error" data-error-for="graduationYear"></div>
             </div>
 
+            <!-- Educational Background -->
             <div class="form-group full-width">
               <label class="form-label" for="appEduBg">Educational Background / SHS Track &amp; Strand <span class="req">*</span></label>
               <input
@@ -598,16 +1400,14 @@ const StudentHubApplicant = (function () {
                 name="educationalBackground"
                 class="form-control"
                 placeholder="e.g. Academic Track - STEM / TVL-ICT Strand"
+                value=""
               />
               <div class="field-error" data-error-for="educationalBackground"></div>
             </div>
           </div>
 
           <div class="modal-actions">
-            <button type="button" class="btn btn-secondary" id="fillSampleApplicantFormBtn" style="margin-right:auto;">
-              Auto-Fill Sample Form Fields
-            </button>
-            <button type="reset" class="btn btn-secondary">Clear Form</button>
+            <button type="reset" class="btn btn-secondary" id="resetApplicantFormBtn">Clear Form</button>
             <button type="submit" class="btn btn-primary">
               Submit Application to BANTUG UNIVERSITY
             </button>
@@ -616,103 +1416,182 @@ const StudentHubApplicant = (function () {
       </div>
     `;
 
-    const backBtn = document.getElementById("backToLandingBtn");
-    if (backBtn) backBtn.addEventListener("click", () => navigateTo("applicant-landing"));
+    container.querySelectorAll("[data-app-nav]").forEach((btn) => {
+      btn.addEventListener("click", () => navigateTo(btn.getAttribute("data-app-nav")));
+    });
 
-    const fillSampleBtn = document.getElementById("fillSampleApplicantFormBtn");
     const form = document.getElementById("universityApplicationForm");
 
-    if (fillSampleBtn && form) {
-      fillSampleBtn.addEventListener("click", () => {
-        clearFormErrors(form);
-        form.querySelector('[name="fullName"]').value = "Dela Rosa, Hannah Sophia";
-        form.querySelector('[name="dateOfBirth"]').value = "2007-09-12";
-        form.querySelector('[name="email"]').value = "hannah.delarosa@email.example";
-        form.querySelector('[name="contactNumber"]').value = "+63 917 555 0311";
-        form.querySelector('[name="address"]').value = "54 Bonifacio St., Central Poblacion";
-        form.querySelector('[name="desiredProgram"]').value =
-          "Bachelor of Science in Information Technology (BSIT)";
-        form.querySelector('[name="secondChoiceProgram"]').value =
-          "Bachelor of Science in Computer Science (BSCS)";
-        form.querySelector('[name="yearLevel"]').value = "Year 1";
-        form.querySelector('[name="applicantType"]').value =
-          "Senior High School Graduate / Freshman";
-        form.querySelector('[name="previousSchool"]').value = "Bantug Science High School";
-        form.querySelector('[name="educationalBackground"]').value = "STEM / ICT Strand";
-        form.querySelector('[name="graduationYear"]').value = "2026";
-        showToast("Filled form with sample applicant details!", "info");
+    if (form) {
+      // Wire real-time error removal on input and change
+      form.querySelectorAll("input, select, textarea").forEach((field) => {
+        const clearCurrentError = () => {
+          field.classList.remove("is-invalid");
+          const errEl = form.querySelector(`[data-error-for="${field.name}"]`);
+          if (errEl) errEl.textContent = "";
+        };
+        field.addEventListener("input", clearCurrentError);
+        field.addEventListener("change", clearCurrentError);
       });
+
+      // Name inputs: disallow numbers during typing
+      ["lastName", "firstName", "middleName"].forEach((name) => {
+        const inp = form.querySelector(`[name="${name}"]`);
+        if (inp) {
+          inp.addEventListener("input", (e) => {
+            if (/\d/.test(e.target.value)) {
+              e.target.value = e.target.value.replace(/\d/g, "");
+            }
+          });
+        }
+      });
+
+      // Date of Birth input: auto-mask MM/DD/YYYY
+      const dobInput = form.querySelector('[name="dateOfBirth"]');
+      if (dobInput) {
+        dobInput.addEventListener("input", (e) => {
+          let v = e.target.value.replace(/\D/g, "").slice(0, 8);
+          if (v.length >= 5) {
+            e.target.value = `${v.slice(0, 2)}/${v.slice(2, 4)}/${v.slice(4)}`;
+          } else if (v.length >= 3) {
+            e.target.value = `${v.slice(0, 2)}/${v.slice(2)}`;
+          } else {
+            e.target.value = v;
+          }
+        });
+      }
+
+      // Contact Number: disallow non-digits and prevent duplicate +63 / 0 prefix
+      const contactInput = form.querySelector('[name="contactNumber"]');
+      if (contactInput) {
+        contactInput.addEventListener("input", (e) => {
+          let v = e.target.value;
+          v = v.replace(/^\+?63\s*/, "").replace(/^0/, "");
+          e.target.value = v.replace(/\D/g, "").slice(0, 10);
+        });
+      }
+
+      // Graduation Year: enforce exactly 4 digits, prevent decimals or letters
+      const gradYrInput = form.querySelector('[name="graduationYear"]');
+      if (gradYrInput) {
+        gradYrInput.addEventListener("input", (e) => {
+          e.target.value = e.target.value.replace(/\D/g, "").slice(0, 4);
+        });
+      }
+
+      // Reset button resets yearLevel back to Year 1
+      const resetBtn = document.getElementById("resetApplicantFormBtn");
+      if (resetBtn) {
+        resetBtn.addEventListener("click", () => {
+          setTimeout(() => {
+            clearFormErrors(form);
+            const yl = form.querySelector('[name="yearLevel"]');
+            if (yl) yl.value = "Year 1";
+          }, 10);
+        });
+      }
     }
+
 
     if (form) {
       let isSubmitting = false;
       form.addEventListener("submit", async (e) => {
         e.preventDefault();
+        // Prevent accidental duplicate submissions caused by rapid clicks
         if (isSubmitting) return;
         clearFormErrors(form);
 
         const fd = new FormData(form);
-        const fullName = String(fd.get("fullName") || "").trim();
-        const dateOfBirth = String(fd.get("dateOfBirth") || "").trim();
+        const lastName = String(fd.get("lastName") || "").trim();
+        const firstName = String(fd.get("firstName") || "").trim();
+        const middleName = String(fd.get("middleName") || "").trim();
+        const dateOfBirthRaw = String(fd.get("dateOfBirth") || "").trim();
         const email = String(fd.get("email") || "").trim();
-        const contactNumber = String(fd.get("contactNumber") || "").trim();
+        const contactRaw = String(fd.get("contactNumber") || "").trim();
         const address = String(fd.get("address") || "").trim();
         const desiredProgram = String(fd.get("desiredProgram") || "").trim();
-        const secondChoiceProgram = String(fd.get("secondChoiceProgram") || "").trim();
-        const yearLevel = String(fd.get("yearLevel") || "").trim();
+        const secondChoiceProgram = String(fd.get("secondChoiceProgram") || "None").trim();
+        const yearLevel = "Year 1"; // Strictly Year 1 for new applicants
         const applicantType = String(fd.get("applicantType") || "").trim();
-        const graduationYear = String(fd.get("graduationYear") || "").trim();
+        const graduationYearRaw = String(fd.get("graduationYear") || "").trim();
         const previousSchool = String(fd.get("previousSchool") || "").trim();
         const educationalBackground = String(fd.get("educationalBackground") || "").trim();
 
         let valid = true;
-        if (!fullName || fullName.length < 3) {
-          setFieldError(form, "fullName", "Please enter the applicant's full name.");
+
+        // 1. Validate Names
+        const lastCheck = validateNamePart(lastName, "Last Name", false);
+        if (!lastCheck.valid) {
+          setFieldError(form, "lastName", lastCheck.error);
           valid = false;
         }
-        if (!dateOfBirth || isNaN(new Date(dateOfBirth).getTime())) {
-          setFieldError(form, "dateOfBirth", "Please enter a valid date of birth.");
+
+        const firstCheck = validateNamePart(firstName, "First Name", false);
+        if (!firstCheck.valid) {
+          setFieldError(form, "firstName", firstCheck.error);
           valid = false;
         }
+
+        const middleCheck = validateNamePart(middleName, "Middle Name", true);
+        if (!middleCheck.valid) {
+          setFieldError(form, "middleName", middleCheck.error);
+          valid = false;
+        }
+
+        // 2. Validate Date of Birth (MM/DD/YYYY, real date, leap year, no future)
+        const dobCheck = validateDateMMDDYYYY(dateOfBirthRaw);
+        if (!dobCheck.valid) {
+          setFieldError(form, "dateOfBirth", dobCheck.error);
+          valid = false;
+        }
+
+        // 3. Email
         if (!email || !isValidEmail(email)) {
           setFieldError(form, "email", "Please enter a valid email address.");
           valid = false;
         }
-        if (!contactNumber || contactNumber.length < 7) {
-          setFieldError(form, "contactNumber", "Please enter a valid contact number.");
+
+        // 4. Contact Number (+63 9XXXXXXXXX)
+        const contactCheck = validatePhilippineContact(contactRaw);
+        if (!contactCheck.valid) {
+          setFieldError(form, "contactNumber", contactCheck.error);
           valid = false;
         }
-        if (!address) {
-          setFieldError(form, "address", "Complete home address is required.");
+
+        // 5. Address
+        if (!address || address.length < 5) {
+          setFieldError(form, "address", "Complete home address is required (at least 5 characters).");
           valid = false;
         }
-        if (!desiredProgram) {
-          setFieldError(form, "desiredProgram", "Please select a desired program.");
+
+        // 6. Programs (desired vs 2nd choice)
+        const programCheck = validateProgramChoices(desiredProgram, secondChoiceProgram);
+        if (!programCheck.valid) {
+          setFieldError(form, programCheck.field, programCheck.error);
           valid = false;
         }
-        if (!yearLevel || !StudentHubStorage.isValidYearLevel(yearLevel)) {
-          setFieldError(
-            form,
-            "yearLevel",
-            "Please select a valid Year Level (Year 1, Year 2, Year 3, or Year 4)."
-          );
+
+        // 7. Previous School
+        if (!previousSchool || previousSchool.length < 3) {
+          setFieldError(form, "previousSchool", "Previous school attended is required.");
           valid = false;
         }
-        if (!previousSchool) {
-          setFieldError(form, "previousSchool", "Previous school is required.");
+
+        // 8. Educational Background
+        if (!educationalBackground || educationalBackground.length < 3) {
+          setFieldError(form, "educationalBackground", "Educational background / strand is required.");
           valid = false;
         }
-        if (!educationalBackground) {
-          setFieldError(form, "educationalBackground", "Educational background is required.");
-          valid = false;
-        }
-        if (!graduationYear || Number(graduationYear) < 1990 || Number(graduationYear) > 2035) {
-          setFieldError(form, "graduationYear", "Enter a valid graduation year.");
+
+        // 9. Graduation Year (exactly 4 digits, no decimals, no future)
+        const gradCheck = validateGraduationYear(graduationYearRaw);
+        if (!gradCheck.valid) {
+          setFieldError(form, "graduationYear", gradCheck.error);
           valid = false;
         }
 
         if (!valid) {
-          showToast("Please complete all required application fields.", "error");
+          showToast("Please correct the highlighted errors in the form.", "error");
           return;
         }
 
@@ -721,24 +1600,31 @@ const StudentHubApplicant = (function () {
         isSubmitting = true;
         if (submitBtn) {
           submitBtn.disabled = true;
-          submitBtn.textContent = "Saving Application to MySQL Database...";
+          submitBtn.textContent = "Submitting Application...";
         }
+
+        const fullName = middleCheck.value
+          ? `${lastCheck.value}, ${firstCheck.value} ${middleCheck.value}`
+          : `${lastCheck.value}, ${firstCheck.value}`;
 
         const newAppPayload = {
           id: StudentHubStorage.uid("app"),
-          referenceNumber: StudentHubStorage.generateAppRef(),
+          lastName: lastCheck.value,
+          firstName: firstCheck.value,
+          middleName: middleCheck.value,
           fullName,
-          dateOfBirth,
+          dateOfBirth: dobCheck.mysqlDate,
+          dateOfBirthDisplay: dobCheck.displayDate,
           email,
-          contactNumber,
+          contactNumber: contactCheck.normalized,
           address,
-          yearLevel,
+          yearLevel: "Year 1",
           applicantType,
           desiredProgram,
           secondChoiceProgram,
           previousSchool,
           educationalBackground,
-          graduationYear,
+          graduationYear: gradCheck.year,
           submittedDate: StudentHubStorage.formatLocalDate(new Date()),
           status: "Pending",
           remarks: "Submitted via Online Applicant Portal — Pending Faculty Evaluation.",
@@ -746,77 +1632,39 @@ const StudentHubApplicant = (function () {
         };
 
         const dbResult = await StudentHubStorage.submitApplicationToDatabase(newAppPayload);
-        isSubmitting = false;
 
-        if (!dbResult || !dbResult.ok) {
+        if (!dbResult || !dbResult.ok || !dbResult.application) {
+          isSubmitting = false;
           if (submitBtn) {
             submitBtn.disabled = false;
             submitBtn.textContent = originalBtnText;
           }
-          if (dbResult && dbResult.errors && typeof dbResult.errors === "object") {
-            Object.entries(dbResult.errors).forEach(([field, msg]) => {
+          if (dbResult && dbResult.fieldErrors && typeof dbResult.fieldErrors === "object") {
+            Object.entries(dbResult.fieldErrors).forEach(([field, msg]) => {
               setFieldError(form, field, msg);
             });
           }
           showToast(
-            (dbResult && dbResult.error) ||
-              "Failed to save application to MySQL database. Please verify the Node.js and XAMPP MySQL server are running.",
+            (dbResult && (dbResult.message || dbResult.error)) ||
+              "Unable to submit application at this time. Please verify your information and try again.",
             "error"
           );
           return;
         }
 
-        const savedApp = dbResult.application || newAppPayload;
+        const savedApp = dbResult.application;
         lastSubmittedConfirmation = savedApp;
+        try {
+          sessionStorage.setItem("bu_last_submitted_app", JSON.stringify(savedApp));
+        } catch (_) {}
+        isSubmitting = false;
+
+        // Render single clean confirmation receipt section (without redundant technical modal)
         renderForm();
-
-        // Show Submission Confirmation Modal ONLY after MySQL confirms insertion
-        openModal(
-          "Application Submitted Successfully",
-          `
-            <div style="text-align:center;padding:8px 4px;">
-              <div class="badge badge-success" style="font-size:0.86rem;padding:6px 14px;margin-bottom:12px;">
-                MySQL Database Insertion Confirmed
-              </div>
-              <h3 style="font-size:1.25rem;margin-bottom:6px;">Thank you, ${escapeHtml(
-                savedApp.fullName
-              )}!</h3>
-              <p style="font-size:0.88rem;color:var(--text-secondary);margin-bottom:14px;">
-                Your application to <strong>BANTUG UNIVERSITY</strong> (${escapeHtml(
-                  savedApp.yearLevel
-                )}) has been saved in the MySQL database with initial status <strong>Pending</strong>.
-              </p>
-
-              <div class="calc-result-box" style="margin-bottom:16px;">
-                <div style="font-size:0.76rem;text-transform:uppercase;color:var(--text-secondary);font-weight:600;">
-                  Application Reference Number
-                </div>
-                <div class="calc-score" style="font-size:1.65rem;">${escapeHtml(
-                  savedApp.referenceNumber
-                )}</div>
-                <div style="font-size:0.82rem;color:var(--text-secondary);margin-top:4px;">
-                  Program: <strong>${escapeHtml(savedApp.desiredProgram)}</strong> &bull; ${escapeHtml(
-            savedApp.yearLevel
-          )}
-                </div>
-              </div>
-
-              <div class="modal-actions" style="justify-content:center;">
-                <button type="button" class="btn btn-primary" id="closeAppSubmittedConfirmBtn">
-                  Done
-                </button>
-              </div>
-            </div>
-          `,
-          (bodyEl) => {
-            bodyEl
-              .querySelector("#closeAppSubmittedConfirmBtn")
-              .addEventListener("click", closeModal);
-          }
-        );
+        window.scrollTo({ top: 0, behavior: "smooth" });
 
         showToast(
-          `Application saved to MySQL database! Ref: ${savedApp.referenceNumber}`,
+          `Application submitted successfully! Ref: ${savedApp.referenceNumber}`,
           "success"
         );
       });
@@ -824,482 +1672,821 @@ const StudentHubApplicant = (function () {
   }
 
   /**
-   * 3. APPLICATION STATUS PAGE (Applicant Demo Account ONLY)
-   * Displays sample applicant information and sample application status records
-   * (Submitted, Under Review, Approved, Rejected), clearly distinguished from
-   * actual applications and labeled as simulated demo data.
+   * 3. APPLICATION STATUS / ADMISSION OVERVIEW (Phase 3 Redesign)
+   * The applicant status tracker is now unified directly into the official Admission Overview
+   * dashboard, displaying only the applicant's real submitted application information.
    */
   function renderStatus() {
-    const container = document.getElementById("applicantStatusContainer");
-    if (!container) return;
+    renderLanding();
+  }
 
-    // Enforce that Application Status records are only visible inside the separate Applicant Demo Account
-    if (!StudentHubStorage.isApplicantDemoSession()) {
-      container.innerHTML = `
-        <div class="card">
-          <div class="empty-state">
-            <h3>Applicant Demo Account Required</h3>
-            <p>Sample application status records are only accessible when logged into the dedicated <strong>Applicant Demo Account</strong> from the Sign-In page.</p>
-          </div>
-        </div>
-      `;
+  /**
+   * Accessible Email OTP Verification Modal
+   * Allows applicants to verify their email address by entering the 6-digit OTP.
+   * Features: 6-digit numeric input, live verification, resend with 60-second cooldown timer.
+   */
+  function openEmailOtpModal(email, referenceNumber, recipientName, onVerifiedCallback) {
+    if (!email) {
+      showToast("No email address provided for verification.", "error");
       return;
     }
 
-    const state = StudentHubStorage.getState();
-    const demoProfile = state.demoApplicantProfile || {};
-    const demoRecords = state.demoApplicantRecords || [];
-    const actualSubmissionsCount = (state.applications || []).length;
-    const validYears = StudentHubStorage.VALID_YEAR_LEVELS;
+    let resendCooldown = 0;
+    let resendTimerInterval = null;
 
-    const filteredRecords = demoRecords.filter((rec) => {
-      const normalizedRecStatus = rec.status === "Submitted" ? "Pending" : rec.status;
-      const matchSt =
-        demoStatusFilter === "All" ||
-        rec.status === demoStatusFilter ||
-        normalizedRecStatus === demoStatusFilter;
-      const matchYr = demoYearFilter === "All" || rec.yearLevel === demoYearFilter;
-      return matchSt && matchYr;
-    });
-
-    if (!filteredRecords.some((r) => r.id === selectedDemoRecordId) && filteredRecords[0]) {
-      selectedDemoRecordId = filteredRecords[0].id;
-    }
-
-    const activeRecord =
-      filteredRecords.find((r) => r.id === selectedDemoRecordId) || filteredRecords[0] || null;
-
-    const countByStatus = {
-      Pending: demoRecords.filter((r) => r.status === "Pending" || r.status === "Submitted").length,
-      "Under Review": demoRecords.filter((r) => r.status === "Under Review").length,
-      Approved: demoRecords.filter((r) => r.status === "Approved").length,
-      Rejected: demoRecords.filter((r) => r.status === "Rejected").length
-    };
-
-    container.innerHTML = `
-      <!-- Applicant Demo Account Banner -->
-      <div class="hero-banner applicant-hero">
-        <div class="hero-left">
-          <div class="university-logo-wrap">
-            <img
-              src="${escapeHtml(StudentHubStorage.getLogoSrc())}"
-              alt="BANTUG UNIVERSITY Logo"
-              class="bu-logo-img"
-              style="max-height:68px;max-width:105px;"
-              onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
-            />
-            <div class="bu-logo-fallback" style="display:none;">BU</div>
-          </div>
+    const modalBody = `
+      <div class="email-otp-dialog" style="padding:4px 0;">
+        <div class="notice-banner" style="margin-bottom:16px;">
           <div>
-            <div class="hero-greeting">BANTUG UNIVERSITY &bull; Dedicated Applicant Demo Account</div>
-            <h2 class="hero-title">${escapeHtml(
-              demoProfile.fullName || "Ceasar Villanueva (Applicant Demo Account)"
-            )}</h2>
-            <div class="hero-meta">
-              <span class="hero-pill">Demo ID: ${escapeHtml(
-                demoProfile.applicantId || "APP-DEMO-2026-01"
-              )}</span>
-              <span class="hero-pill">Email: ${escapeHtml(
-                demoProfile.email || "applicant.demo@bantug.edu.example"
-              )}</span>
-              <span class="hero-pill">${escapeHtml(demoProfile.yearLevel || "Year 1")}</span>
-              <span class="hero-pill">Simulated Demo Account</span>
+            A 6-digit verification code (OTP) was sent to <strong>${escapeHtml(email)}</strong>. Please check your inbox and enter the code below to verify ownership.
+          </div>
+        </div>
+
+        <div id="modalOtpAlert" class="field-error" style="margin-bottom:12px;font-size:0.88rem;display:none;" role="alert"></div>
+
+        <form id="emailOtpModalForm" novalidate>
+          <div class="form-group" style="text-align:center;margin-bottom:18px;">
+            <label class="form-label" for="modalOtpCodeInput" style="font-size:0.95rem;font-weight:600;display:block;margin-bottom:8px;">
+              Enter 6-Digit Verification Code
+            </label>
+            <input
+              type="text"
+              id="modalOtpCodeInput"
+              name="otpCode"
+              class="form-control"
+              placeholder="000000"
+              maxlength="6"
+              autocomplete="one-time-code"
+              inputmode="numeric"
+              style="width:200px;margin:0 auto;font-size:1.5rem;letter-spacing:6px;text-align:center;font-weight:700;"
+              required
+            />
+            <small class="form-hint" style="display:block;margin-top:6px;">Codes expire in 5 minutes. Up to 5 verification attempts allowed.</small>
+          </div>
+
+          <div style="display:flex;justify-content:center;align-items:center;gap:12px;margin-bottom:16px;">
+            <button type="button" class="btn btn-sm btn-secondary" id="modalOtpResendBtn">
+              Resend Code
+            </button>
+            <span id="modalOtpResendTimer" style="font-size:0.82rem;color:var(--text-muted);"></span>
+          </div>
+
+          <div class="modal-actions" style="display:flex;justify-content:flex-end;gap:10px;border-top:1px solid var(--border-color);padding-top:14px;">
+            <button type="button" class="btn btn-secondary" id="modalOtpCloseBtn">Close</button>
+            <button type="submit" class="btn btn-primary" id="modalOtpSubmitBtn">Verify Email</button>
+          </div>
+        </form>
+      </div>
+    `;
+
+    openModal("Email Address Verification", modalBody, (bodyEl) => {
+      const form = bodyEl.querySelector("#emailOtpModalForm");
+      const codeInput = bodyEl.querySelector("#modalOtpCodeInput");
+      const submitBtn = bodyEl.querySelector("#modalOtpSubmitBtn");
+      const resendBtn = bodyEl.querySelector("#modalOtpResendBtn");
+      const resendTimerEl = bodyEl.querySelector("#modalOtpResendTimer");
+      const closeBtn = bodyEl.querySelector("#modalOtpCloseBtn");
+      const alertEl = bodyEl.querySelector("#modalOtpAlert");
+
+      if (codeInput) codeInput.focus();
+
+      if (closeBtn) {
+        closeBtn.addEventListener("click", () => {
+          if (resendTimerInterval) clearInterval(resendTimerInterval);
+          closeModal();
+        });
+      }
+
+      const startCooldown = (seconds = 60) => {
+        resendCooldown = seconds;
+        if (resendBtn) resendBtn.disabled = true;
+        if (resendTimerEl) resendTimerEl.textContent = `Wait ${resendCooldown}s to resend`;
+
+        if (resendTimerInterval) clearInterval(resendTimerInterval);
+        resendTimerInterval = setInterval(() => {
+          resendCooldown -= 1;
+          if (resendCooldown <= 0) {
+            clearInterval(resendTimerInterval);
+            resendTimerInterval = null;
+            if (resendBtn) resendBtn.disabled = false;
+            if (resendTimerEl) resendTimerEl.textContent = "";
+          } else {
+            if (resendTimerEl) resendTimerEl.textContent = `Wait ${resendCooldown}s to resend`;
+          }
+        }, 1000);
+      };
+
+      if (resendBtn) {
+        resendBtn.addEventListener("click", async () => {
+          if (resendCooldown > 0) return;
+          if (alertEl) alertEl.style.display = "none";
+          resendBtn.disabled = true;
+
+          try {
+            const res = await fetch("/api/otp/request", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                email,
+                purpose: "applicant_email_verification",
+                referenceId: referenceNumber,
+                recipientName: recipientName || "Applicant"
+              })
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok || !data.ok) {
+              if (data.cooldownRemaining) {
+                startCooldown(data.cooldownRemaining);
+              }
+              if (alertEl) {
+                alertEl.textContent = data.message || "Failed to resend verification code.";
+                alertEl.style.display = "block";
+              }
+              showToast(data.message || "Unable to resend code at this time.", "error");
+              return;
+            }
+
+            showToast("A new 6-digit verification code has been dispatched to your email.", "success");
+            startCooldown(data.cooldownSeconds || 60);
+          } catch (_) {
+            if (alertEl) {
+              alertEl.textContent = "Network error. Please try again.";
+              alertEl.style.display = "block";
+            }
+            resendBtn.disabled = false;
+          }
+        });
+      }
+
+      if (form) {
+        form.addEventListener("submit", async (e) => {
+          e.preventDefault();
+          if (alertEl) alertEl.style.display = "none";
+
+          const enteredCode = String(codeInput.value || "").trim();
+          if (!enteredCode || !/^\d{6}$/.test(enteredCode)) {
+            if (alertEl) {
+              alertEl.textContent = "Please enter a valid 6-digit numeric verification code.";
+              alertEl.style.display = "block";
+            }
+            return;
+          }
+
+          submitBtn.disabled = true;
+          submitBtn.textContent = "Verifying...";
+
+          try {
+            const res = await fetch("/api/otp/verify", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                email,
+                otp: enteredCode,
+                purpose: "applicant_email_verification",
+                referenceId: referenceNumber
+              })
+            });
+
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok || !data.ok) {
+              submitBtn.disabled = false;
+              submitBtn.textContent = "Verify Email";
+              if (alertEl) {
+                alertEl.textContent = data.message || "Invalid or expired verification code.";
+                alertEl.style.display = "block";
+              }
+              return;
+            }
+
+            // Success!
+            if (resendTimerInterval) clearInterval(resendTimerInterval);
+            showToast("Email address successfully verified!", "success");
+
+            // Update session and confirmation state
+            try {
+              const session = StudentHubStorage.getSession();
+              if (session && (session.email === email || session.actorId === referenceNumber)) {
+                session.emailVerified = true;
+                StudentHubStorage.setSession(session);
+              }
+              if (lastSubmittedConfirmation && lastSubmittedConfirmation.referenceNumber === referenceNumber) {
+                lastSubmittedConfirmation.emailVerified = true;
+                sessionStorage.setItem("bu_last_submitted_app", JSON.stringify(lastSubmittedConfirmation));
+              }
+            } catch (_) {}
+
+            if (typeof onVerifiedCallback === "function") {
+              onVerifiedCallback();
+            } else {
+              renderLanding();
+            }
+
+            closeModal();
+          } catch (_) {
+            submitBtn.disabled = false;
+            submitBtn.textContent = "Verify Email";
+            if (alertEl) {
+              alertEl.textContent = "Network error. Please try again.";
+              alertEl.style.display = "block";
+            }
+          }
+        });
+      }
+    });
+  }
+
+  /**
+   * Accessible Applicant Account Modal
+   * Displays Account ID / Reference Number, registered email, verification status, name, status,
+   * Change Password button (PBKDF2-SHA256), and Sign Out button.
+   */
+  function openApplicantAccountModal() {
+    const session = StudentHubStorage.getSession();
+    const app = getApplicantApplication();
+    const refNum = (app && app.referenceNumber) || (session && (session.actorId || session.username)) || "BU-2026-APPLICANT";
+    const email = (app && app.email) || (session && session.email) || "Not registered";
+    const fullName = (app && app.fullName) || (session && (session.displayName || session.actorName)) || "Applicant";
+    const status = (app && app.status) || "Pending";
+    const isEmailVerified = !!((app && app.emailVerified) || (session && session.emailVerified));
+
+    const modalBody = `
+      <div class="applicant-account-dialog">
+        <div class="applicant-account-header" style="display:flex;align-items:center;gap:14px;margin-bottom:18px;">
+          <img src="assets/images/default-avatar.svg" alt="Applicant Avatar" style="width:52px;height:52px;border-radius:50%;background:#e2e8f0;border:2px solid var(--royal-500);object-fit:cover;" />
+          <div>
+            <h3 style="margin:0 0 4px 0;font-size:1.1rem;font-weight:700;color:var(--text-dark);">${escapeHtml(fullName)}</h3>
+            <div style="display:flex;gap:6px;align-items:center;">
+              <span class="badge badge-primary">APPLICANT</span>
+              <span class="badge ${getStatusBadgeClass(status)}">Status: ${escapeHtml(status)}</span>
             </div>
           </div>
         </div>
-        <div class="hero-actions">
-          <button type="button" class="btn btn-hero" data-demo-app-nav="applicant-landing">
-            View Degree Programs
+
+        <div class="settings-account-summary" style="margin-bottom:20px;display:grid;grid-template-columns:repeat(auto-fit, minmax(200px, 1fr));gap:12px;background:var(--bg-light);padding:14px;border-radius:8px;border:1px solid var(--border-color);">
+          <div>
+            <span class="settings-summary-label" style="display:block;font-size:0.75rem;font-weight:600;color:var(--text-muted);text-transform:uppercase;">Account ID / Reference No.</span>
+            <span class="settings-summary-value" id="applicantModalRefNum" style="font-size:0.92rem;font-weight:600;color:var(--text-dark);">${escapeHtml(refNum)}</span>
+          </div>
+          <div>
+            <span class="settings-summary-label" style="display:block;font-size:0.75rem;font-weight:600;color:var(--text-muted);text-transform:uppercase;">Registered Email Address</span>
+            <span class="settings-summary-value" id="applicantModalEmail" style="font-size:0.92rem;font-weight:600;color:var(--text-dark);">${escapeHtml(email)}</span>
+          </div>
+          <div>
+            <span class="settings-summary-label" style="display:block;font-size:0.75rem;font-weight:600;color:var(--text-muted);text-transform:uppercase;">Email Verification</span>
+            <div style="display:flex;align-items:center;gap:6px;margin-top:2px;">
+              <span class="badge ${isEmailVerified ? 'badge-success' : 'badge-warning'}">${isEmailVerified ? '&#10003; Verified' : 'Pending Verification'}</span>
+              ${!isEmailVerified ? `<button type="button" class="btn btn-xs btn-outline-primary" id="applicantModalVerifyEmailBtn" style="padding:2px 8px;font-size:0.75rem;">Verify</button>` : ''}
+            </div>
+          </div>
+          <div>
+            <span class="settings-summary-label" style="display:block;font-size:0.75rem;font-weight:600;color:var(--text-muted);text-transform:uppercase;">Application Status</span>
+            <span class="settings-summary-value" id="applicantModalStatus" style="font-size:0.92rem;font-weight:600;color:var(--text-dark);">${escapeHtml(status)}</span>
+          </div>
+          <div>
+            <span class="settings-summary-label" style="display:block;font-size:0.75rem;font-weight:600;color:var(--text-muted);text-transform:uppercase;">Password Security</span>
+            <span class="settings-summary-value" style="font-size:0.92rem;font-weight:600;color:var(--text-dark);">PBKDF2-SHA256 Encrypted</span>
+          </div>
+        </div>
+
+        <div class="modal-actions" style="display:flex;justify-content:space-between;align-items:center;border-top:1px solid var(--border-color);padding-top:16px;">
+          <button type="button" class="btn btn-outline-danger" id="applicantModalLogoutBtn">
+            Sign Out Session
+          </button>
+          <div style="display:flex;gap:8px;">
+            <button type="button" class="btn btn-primary" id="applicantModalChangePassBtn">
+              Change Password
+            </button>
+            <button type="button" class="btn btn-secondary" id="applicantModalCloseBtn">
+              Close
+            </button>
+          </div>
+        </div>
+      </div>
+    `;
+
+    openModal("Applicant Account Information", modalBody, (bodyEl) => {
+      const closeBtn = bodyEl.querySelector("#applicantModalCloseBtn");
+      if (closeBtn) closeBtn.addEventListener("click", closeModal);
+
+      const logoutBtn = bodyEl.querySelector("#applicantModalLogoutBtn");
+      if (logoutBtn) {
+        logoutBtn.addEventListener("click", () => {
+          closeModal();
+          if (window.StudentHubApp) window.StudentHubApp.logoutToLogin();
+        });
+      }
+
+      const cpBtn = bodyEl.querySelector("#applicantModalChangePassBtn");
+      if (cpBtn) {
+        cpBtn.addEventListener("click", () => {
+          closeModal();
+          if (window.StudentHubSettings && window.StudentHubSettings.openChangePasswordModal) {
+            window.StudentHubSettings.openChangePasswordModal();
+          }
+        });
+      }
+
+      const verifyEmailBtn = bodyEl.querySelector("#applicantModalVerifyEmailBtn");
+      if (verifyEmailBtn) {
+        verifyEmailBtn.addEventListener("click", () => {
+          closeModal();
+          openEmailOtpModal(email, refNum, fullName);
+        });
+      }
+    });
+  }
+
+  /**
+   * Public Admission Controller (Independent of Student/Faculty/Admin Portals)
+   * Flow: PUBLIC ADMISSION PAGE -> APPLICATION FORM -> SUBMIT -> CONFIRMATION
+   * No automatic portal login.
+   * No automatic student account creation.
+   * No unrelated student dashboard.
+   * No preloaded applicant overview.
+   */
+  function initPublicAdmission() {
+    const wrap = document.getElementById("publicAdmissionScreen");
+    if (!wrap) return;
+
+    // Header Portal Login Button
+    const toLoginBtn = document.getElementById("admissionToLoginBtn");
+    if (toLoginBtn) {
+      toLoginBtn.onclick = () => {
+        if (window.StudentHubApp && typeof window.StudentHubApp.showLoginScreen === "function") {
+          window.StudentHubApp.showLoginScreen();
+        } else {
+          window.location.hash = "";
+        }
+      };
+    }
+
+    // Check if user has an active submitted application confirmation in sessionStorage
+    const cachedConf = sessionStorage.getItem("bu_public_app_confirmation");
+    if (cachedConf) {
+      try {
+        const parsed = JSON.parse(cachedConf);
+        if (parsed && parsed.referenceNumber) {
+          renderPublicConfirmation(parsed);
+          return;
+        }
+      } catch (_) {}
+    }
+
+    renderPublicFormView();
+  }
+
+  function renderPublicFormView() {
+    const formWrap = document.getElementById("publicApplicationFormWrap");
+    const confWrap = document.getElementById("publicConfirmationWrap");
+    if (formWrap) formWrap.hidden = false;
+    if (confWrap) confWrap.hidden = true;
+
+    const form = document.getElementById("publicAdmissionForm");
+    if (!form) return;
+
+    // Auto-mask MM/DD/YYYY for Date of Birth
+    const dobInput = document.getElementById("pubDob");
+    if (dobInput && !dobInput.dataset.bound) {
+      dobInput.dataset.bound = "1";
+      dobInput.addEventListener("input", (e) => {
+        let v = e.target.value.replace(/\D/g, "").slice(0, 8);
+        if (v.length >= 5) {
+          e.target.value = `${v.slice(0, 2)}/${v.slice(2, 4)}/${v.slice(4)}`;
+        } else if (v.length >= 3) {
+          e.target.value = `${v.slice(0, 2)}/${v.slice(2)}`;
+        } else {
+          e.target.value = v;
+        }
+      });
+    }
+
+    // Contact number input
+    const contactInput = document.getElementById("pubContactNumber");
+    if (contactInput && !contactInput.dataset.bound) {
+      contactInput.dataset.bound = "1";
+      contactInput.addEventListener("input", (e) => {
+        let v = e.target.value.replace(/^\+?63\s*/, "").replace(/^0/, "");
+        e.target.value = v.replace(/\D/g, "").slice(0, 10);
+      });
+    }
+
+    // Graduation year input (4 digits)
+    const gradInput = document.getElementById("pubGraduationYear");
+    if (gradInput && !gradInput.dataset.bound) {
+      gradInput.dataset.bound = "1";
+      gradInput.addEventListener("input", (e) => {
+        e.target.value = e.target.value.replace(/\D/g, "").slice(0, 4);
+      });
+    }
+
+    // Reset button
+    const resetBtn = document.getElementById("pubResetBtn");
+    if (resetBtn && !resetBtn.dataset.bound) {
+      resetBtn.dataset.bound = "1";
+      resetBtn.addEventListener("click", () => {
+        form.reset();
+        clearFormErrors(form);
+        const yl = document.getElementById("pubYearLevel");
+        if (yl) yl.value = "Year 1";
+        const genErr = document.getElementById("pubGeneralError");
+        if (genErr) genErr.style.display = "none";
+      });
+    }
+
+    // Form submit
+    if (!form.dataset.bound) {
+      form.dataset.bound = "1";
+      let isSubmitting = false;
+
+      form.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        if (isSubmitting) return;
+
+        clearFormErrors(form);
+        const genErr = document.getElementById("pubGeneralError");
+        if (genErr) {
+          genErr.style.display = "none";
+          genErr.textContent = "";
+        }
+
+        const fd = new FormData(form);
+        const lastName = String(fd.get("lastName") || "").trim();
+        const firstName = String(fd.get("firstName") || "").trim();
+        const middleName = String(fd.get("middleName") || "").trim();
+        const dateOfBirthRaw = String(fd.get("dateOfBirth") || "").trim();
+        const email = String(fd.get("email") || "").trim();
+        const contactRaw = String(fd.get("contactNumber") || "").trim();
+        const address = String(fd.get("address") || "").trim();
+        const desiredProgram = String(fd.get("desiredProgram") || "").trim();
+        const secondChoiceProgram = String(fd.get("secondChoiceProgram") || "None").trim();
+        const yearLevel = "Year 1";
+        const applicantType = String(fd.get("applicantType") || "Senior High School Graduate / Freshman").trim();
+        const previousSchool = String(fd.get("previousSchool") || "").trim();
+        const educationalBackground = String(fd.get("educationalBackground") || "").trim();
+        const graduationYearRaw = String(fd.get("graduationYear") || "").trim();
+
+        let valid = true;
+
+        const lastCheck = validateNamePart(lastName, "Last Name", false);
+        if (!lastCheck.valid) {
+          setFieldError(form, "lastName", lastCheck.error);
+          valid = false;
+        }
+
+        const firstCheck = validateNamePart(firstName, "First Name", false);
+        if (!firstCheck.valid) {
+          setFieldError(form, "firstName", firstCheck.error);
+          valid = false;
+        }
+
+        const middleCheck = validateNamePart(middleName, "Middle Name", true);
+        if (!middleCheck.valid) {
+          setFieldError(form, "middleName", middleCheck.error);
+          valid = false;
+        }
+
+        const dobCheck = validateDateMMDDYYYY(dateOfBirthRaw);
+        if (!dobCheck.valid) {
+          setFieldError(form, "dateOfBirth", dobCheck.error);
+          valid = false;
+        }
+
+        if (!email || !isValidEmail(email)) {
+          setFieldError(form, "email", "Please enter a valid email address.");
+          valid = false;
+        }
+
+        const contactCheck = validatePhilippineContact(contactRaw);
+        if (!contactCheck.valid) {
+          setFieldError(form, "contactNumber", contactCheck.error);
+          valid = false;
+        }
+
+        if (!address || address.length < 5) {
+          setFieldError(form, "address", "Complete home address is required (at least 5 characters).");
+          valid = false;
+        }
+
+        const programCheck = validateProgramChoices(desiredProgram, secondChoiceProgram);
+        if (!programCheck.valid) {
+          setFieldError(form, programCheck.field, programCheck.error);
+          valid = false;
+        }
+
+        if (!previousSchool || previousSchool.length < 3) {
+          setFieldError(form, "previousSchool", "Previous school attended is required.");
+          valid = false;
+        }
+
+        if (!educationalBackground || educationalBackground.length < 3) {
+          setFieldError(form, "educationalBackground", "Educational background / strand is required.");
+          valid = false;
+        }
+
+        const gradCheck = validateGraduationYear(graduationYearRaw);
+        if (!gradCheck.valid) {
+          setFieldError(form, "graduationYear", gradCheck.error);
+          valid = false;
+        }
+
+        if (!valid) {
+          showToast("Please correct the highlighted errors in the application form.", "error");
+          const firstErr = form.querySelector(".field-error:not(:empty)");
+          if (firstErr) {
+            firstErr.scrollIntoView({ behavior: "smooth", block: "center" });
+          }
+          return;
+        }
+
+        const submitBtn = document.getElementById("pubSubmitBtn");
+        const originalText = submitBtn ? submitBtn.textContent : "Submit Application for Admission";
+        isSubmitting = true;
+        if (submitBtn) {
+          submitBtn.disabled = true;
+          submitBtn.textContent = "Submitting Application...";
+        }
+
+        const fullName = middleCheck.value
+          ? `${lastCheck.value}, ${firstCheck.value} ${middleCheck.value}`
+          : `${lastCheck.value}, ${firstCheck.value}`;
+
+        const payload = {
+          id: StudentHubStorage.uid("app"),
+          lastName: lastCheck.value,
+          firstName: firstCheck.value,
+          middleName: middleCheck.value,
+          fullName,
+          dateOfBirth: dobCheck.mysqlDate,
+          dateOfBirthDisplay: dobCheck.displayDate,
+          email,
+          contactNumber: contactCheck.normalized,
+          address,
+          yearLevel: "Year 1",
+          applicantType,
+          desiredProgram,
+          secondChoiceProgram,
+          previousSchool,
+          educationalBackground,
+          graduationYear: gradCheck.year,
+          submittedDate: StudentHubStorage.formatLocalDate(new Date()),
+          status: "Pending",
+          remarks: "Submitted via Public Online Admission Application — Pending Review.",
+          isDemoRecord: false
+        };
+
+        try {
+          const dbResult = await StudentHubStorage.submitApplicationToDatabase(payload);
+
+          if (!dbResult || !dbResult.ok || !dbResult.application) {
+            isSubmitting = false;
+            if (submitBtn) {
+              submitBtn.disabled = false;
+              submitBtn.textContent = originalText;
+            }
+            if (dbResult && dbResult.fieldErrors && typeof dbResult.fieldErrors === "object") {
+              Object.entries(dbResult.fieldErrors).forEach(([field, msg]) => {
+                setFieldError(form, field, msg);
+              });
+            }
+            const errMsg = (dbResult && (dbResult.message || dbResult.error)) || "Failed to submit application. Please check your entries and try again.";
+            if (genErr) {
+              genErr.textContent = errMsg;
+              genErr.style.display = "block";
+            }
+            showToast(errMsg, "error");
+            return;
+          }
+
+          const savedApp = dbResult.application;
+          try {
+            sessionStorage.setItem("bu_public_app_confirmation", JSON.stringify(savedApp));
+          } catch (_) {}
+
+          form.reset();
+          const yl = document.getElementById("pubYearLevel");
+          if (yl) yl.value = "Year 1";
+
+          isSubmitting = false;
+          if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.textContent = originalText;
+          }
+
+          renderPublicConfirmation(savedApp);
+          showToast(`Application submitted successfully! Ref: ${savedApp.referenceNumber}`, "success");
+          window.scrollTo({ top: 0, behavior: "smooth" });
+        } catch (err) {
+          isSubmitting = false;
+          if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.textContent = originalText;
+          }
+          if (genErr) {
+            genErr.textContent = "Network error while submitting application: " + err.message;
+            genErr.style.display = "block";
+          }
+          showToast("Network error while submitting application. Please try again.", "error");
+        }
+      });
+    }
+  }
+
+  function renderPublicConfirmation(app) {
+    const formWrap = document.getElementById("publicApplicationFormWrap");
+    const confWrap = document.getElementById("publicConfirmationWrap");
+    const mount = document.getElementById("publicConfirmationCardMount");
+
+    if (formWrap) formWrap.hidden = true;
+    if (confWrap) confWrap.hidden = false;
+    if (!mount) return;
+
+    mount.innerHTML = `
+      <div class="card" style="max-width:820px;margin:0 auto;text-align:center;padding:36px 28px;box-shadow:0 10px 25px -5px rgba(15,23,42,0.1);">
+        <div style="margin-bottom:14px;">
+          <span class="badge badge-success" style="font-size:0.95rem;padding:8px 22px;font-weight:700;">
+            &#10003; Application Submitted Successfully!
+          </span>
+        </div>
+
+        <h2 style="font-size:1.65rem;margin-bottom:8px;color:var(--royal-900);">
+          Thank you for applying to BANTUG UNIVERSITY, ${escapeHtml(app.fullName)}!
+        </h2>
+
+        <p style="font-size:0.96rem;color:var(--text-secondary);max-width:620px;margin:0 auto 22px;line-height:1.6;">
+          Your admission application has been received and saved. Your initial application status is <strong>Pending</strong>.
+          The Admissions Committee will review your submitted credentials.
+        </p>
+
+        <!-- Prominent Reference Box -->
+        <div class="confirmation-ref-box">
+          <div class="ref-box-eyebrow">Official Application Reference Number</div>
+          <div class="ref-box-number" id="pubRefNumVal">${escapeHtml(app.referenceNumber)}</div>
+          <div class="ref-box-actions">
+            <button
+              type="button"
+              class="btn btn-primary copy-ref-btn"
+              id="pubCopyRefBtn"
+              data-ref="${escapeHtml(app.referenceNumber)}"
+              aria-label="Copy application reference number ${escapeHtml(app.referenceNumber)}"
+              title="Copy reference number to clipboard"
+            >
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:6px;vertical-align:text-bottom;">
+                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+              </svg>
+              <span class="copy-btn-text">Copy Reference Number</span>
+            </button>
+            <span id="pubCopyFeedback" class="copy-success-indicator" style="display:none;" role="status">Reference number copied!</span>
+          </div>
+          <p class="ref-box-notice">
+            Please save or take note of this reference number. You may use it when contacting the university regarding your admission status.
+          </p>
+          <div class="ref-box-meta">
+            Submitted on <strong>${escapeHtml(formatReadableDate(app.submittedDate))}</strong> &bull; Initial Status: <span class="badge badge-warning" style="font-size:0.8rem;">Pending</span>
+          </div>
+        </div>
+
+        <!-- Submitted Information Summary Table/Grid -->
+        <div class="form-grid" style="text-align:left;margin-bottom:28px;">
+          <div class="dash-list-item">
+            <div>
+              <div class="dash-item-sub">Applicant Legal Name</div>
+              <div class="dash-item-title">${escapeHtml(app.fullName)}</div>
+            </div>
+          </div>
+
+          <div class="dash-list-item">
+            <div>
+              <div class="dash-item-sub">Date of Birth (MM/DD/YYYY)</div>
+              <div class="dash-item-title">${escapeHtml(formatDateMMDDYYYY(app.dateOfBirth))}</div>
+            </div>
+          </div>
+
+          <div class="dash-list-item">
+            <div>
+              <div class="dash-item-sub">Applying For Year Level</div>
+              <div class="dash-item-title"><span class="badge badge-primary">${escapeHtml(app.yearLevel || "Year 1")}</span></div>
+            </div>
+          </div>
+
+          <div class="dash-list-item">
+            <div>
+              <div class="dash-item-sub">Primary Academic Program (1st Choice)</div>
+              <div class="dash-item-title">${escapeHtml(app.desiredProgram)}</div>
+            </div>
+          </div>
+
+          <div class="dash-list-item">
+            <div>
+              <div class="dash-item-sub">Alternative Program (2nd Choice)</div>
+              <div class="dash-item-title">${escapeHtml(app.secondChoiceProgram || "None")}</div>
+            </div>
+          </div>
+
+          <div class="dash-list-item">
+            <div>
+              <div class="dash-item-sub">Applicant Classification</div>
+              <div class="dash-item-title">${escapeHtml(app.applicantType)}</div>
+            </div>
+          </div>
+
+          <div class="dash-list-item">
+            <div>
+              <div class="dash-item-sub">Email Address</div>
+              <div class="dash-item-title">${escapeHtml(app.email)}</div>
+            </div>
+          </div>
+
+          <div class="dash-list-item">
+            <div>
+              <div class="dash-item-sub">Contact Number</div>
+              <div class="dash-item-title">${escapeHtml(app.contactNumber)}</div>
+            </div>
+          </div>
+
+          <div class="dash-list-item">
+            <div>
+              <div class="dash-item-sub">Previous School Attended</div>
+              <div class="dash-item-title">${escapeHtml(app.previousSchool)} (${escapeHtml(app.graduationYear)})</div>
+            </div>
+          </div>
+
+          <div class="dash-list-item">
+            <div>
+              <div class="dash-item-sub">Educational Track / Strand</div>
+              <div class="dash-item-title">${escapeHtml(app.educationalBackground)}</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Receipt Actions -->
+        <div class="modal-actions" style="justify-content:center;gap:14px;flex-wrap:wrap;border-top:1px solid var(--border-color);padding-top:24px;">
+          <button type="button" class="btn btn-secondary" id="pubPrintReceiptBtn" title="Print this confirmation receipt">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:5px;vertical-align:text-bottom;">
+              <polyline points="6 9 6 2 18 2 18 9"></polyline>
+              <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>
+              <rect x="6" y="14" width="12" height="8"></rect>
+            </svg>
+            Print Confirmation
+          </button>
+          <button type="button" class="btn btn-primary" id="pubNewAppBtn">
+            + Submit Another Application
+          </button>
+          <button type="button" class="btn btn-secondary" id="pubReturnLoginBtn">
+            Portal Login &rarr;
           </button>
         </div>
       </div>
-
-      <!-- Clear Distinction Notice -->
-      <div class="notice-banner">
-        <div>
-          <strong>Simulated Applicant Demo Account Notice:</strong> You are signed into the separate <strong>Applicant Demo Account</strong>. All application status records shown on this page are <strong>preloaded sample demonstration records</strong> stored locally in <code>localStorage</code> and are <strong>not connected to a real university admissions database</strong>. These sample statuses are separated from the normal application submission form${
-            actualSubmissionsCount > 0
-              ? ` (${actualSubmissionsCount} separate form submission${
-                  actualSubmissionsCount > 1 ? "s" : ""
-                } recorded in the normal application flow)`
-              : ""
-          }.
-        </div>
-      </div>
-
-      <!-- Sample Status Summary Cards -->
-      <div class="stats-grid">
-        <div class="stat-card">
-          <div class="stat-info">
-            <span class="stat-label">Pending / Submitted</span>
-            <span class="stat-value">${countByStatus["Pending"]}</span>
-            <span class="stat-sub">Demo Status Record</span>
-          </div>
-          <div class="stat-icon icon-blue">
-            <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none">
-              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-              <polyline points="14 2 14 8 20 8"></polyline>
-            </svg>
-          </div>
-        </div>
-
-        <div class="stat-card">
-          <div class="stat-info">
-            <span class="stat-label">Under Review (Sample)</span>
-            <span class="stat-value">${countByStatus["Under Review"]}</span>
-            <span class="stat-sub">Demo Status Record</span>
-          </div>
-          <div class="stat-icon icon-amber">
-            <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none">
-              <circle cx="12" cy="12" r="10"></circle>
-              <polyline points="12 6 12 12 16 14"></polyline>
-            </svg>
-          </div>
-        </div>
-
-        <div class="stat-card">
-          <div class="stat-info">
-            <span class="stat-label">Approved (Sample)</span>
-            <span class="stat-value">${countByStatus["Approved"]}</span>
-            <span class="stat-sub">Demo Status Record</span>
-          </div>
-          <div class="stat-icon icon-green">
-            <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none">
-              <polyline points="20 6 9 17 4 12"></polyline>
-            </svg>
-          </div>
-        </div>
-
-        <div class="stat-card">
-          <div class="stat-info">
-            <span class="stat-label">Rejected (Sample)</span>
-            <span class="stat-value">${countByStatus["Rejected"]}</span>
-            <span class="stat-sub">Demo Status Record</span>
-          </div>
-          <div class="stat-icon icon-purple">
-            <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none">
-              <circle cx="12" cy="12" r="10"></circle>
-              <line x1="15" y1="9" x2="9" y2="15"></line>
-              <line x1="9" y1="9" x2="15" y2="15"></line>
-            </svg>
-          </div>
-        </div>
-      </div>
-
-      <!-- Sample Application Records Table -->
-      <div class="card" style="margin-bottom:22px;">
-        <div class="card-header">
-          <div>
-            <h3 class="card-title">Sample Application Status Records (Applicant Demo Account)</h3>
-            <p style="font-size:0.82rem;color:var(--text-secondary);margin-top:2px;">
-              Select any sample application record below to inspect its simulated status details.
-            </p>
-          </div>
-          <div style="display:flex;gap:10px;flex-wrap:wrap;">
-            <select id="demoStatusFilterSelect" class="form-control" style="max-width:190px;" aria-label="Filter by Status">
-              <option value="All" ${demoStatusFilter === "All" ? "selected" : ""}>All Statuses (${
-      demoRecords.length
-    })</option>
-              ${["Pending", "Under Review", "Approved", "Rejected"]
-                .map(
-                  (st) =>
-                    `<option value="${st}" ${
-                      demoStatusFilter === st ? "selected" : ""
-                    }>${st}</option>`
-                )
-                .join("")}
-            </select>
-
-            <select id="demoYearFilterSelect" class="form-control" style="max-width:170px;" aria-label="Filter by Year Level">
-              <option value="All" ${demoYearFilter === "All" ? "selected" : ""}>All Year Levels</option>
-              ${validYears
-                .map(
-                  (yr) =>
-                    `<option value="${yr}" ${
-                      demoYearFilter === yr ? "selected" : ""
-                    }>${yr}</option>`
-                )
-                .join("")}
-            </select>
-          </div>
-        </div>
-
-        <div class="table-responsive">
-          <table class="data-table">
-            <thead>
-              <tr>
-                <th>Reference No.</th>
-                <th>Sample Applicant Name</th>
-                <th>Desired Program</th>
-                <th>Year Level</th>
-                <th>Record Type</th>
-                <th>Sample Status</th>
-                <th>Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${
-                filteredRecords.length === 0
-                  ? `<tr><td colspan="7" style="text-align:center;padding:20px;">No sample demo records match the selected filters.</td></tr>`
-                  : filteredRecords
-                      .map(
-                        (rec) => `
-                      <tr style="${
-                        activeRecord && activeRecord.id === rec.id
-                          ? "background:var(--primary-50);"
-                          : ""
-                      }">
-                        <td><strong>${escapeHtml(rec.referenceNumber)}</strong></td>
-                        <td><strong>${escapeHtml(rec.fullName)}</strong></td>
-                        <td>${escapeHtml(rec.desiredProgram)}</td>
-                        <td><span class="badge badge-info">${escapeHtml(rec.yearLevel)}</span></td>
-                        <td><span class="badge badge-neutral">Simulated Demo Record</span></td>
-                        <td>
-                          <span class="badge ${getStatusBadgeClass(rec.status)}">
-                            ${escapeHtml(rec.status)}
-                          </span>
-                        </td>
-                        <td>
-                          <button
-                            type="button"
-                            class="btn btn-sm ${
-                              activeRecord && activeRecord.id === rec.id
-                                ? "btn-primary"
-                                : "btn-secondary"
-                            } inspect-demo-rec-btn"
-                            data-id="${escapeHtml(rec.id)}"
-                          >
-                            ${
-                              activeRecord && activeRecord.id === rec.id
-                                ? "Viewing Details"
-                                : "Inspect Status"
-                            }
-                          </button>
-                        </td>
-                      </tr>
-                    `
-                      )
-                      .join("")
-              }
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      <!-- Detailed Sample Application Status Viewer -->
-      ${
-        activeRecord
-          ? `
-          <div class="card">
-            <div class="card-header">
-              <div>
-                <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
-                  <span class="badge badge-warning">Simulated Demo Record</span>
-                  <span style="font-size:0.78rem;text-transform:uppercase;color:var(--text-muted);font-weight:700;">
-                    Reference: ${escapeHtml(activeRecord.referenceNumber)}
-                  </span>
-                </div>
-                <h3 style="font-size:1.3rem;color:var(--royal-600);">
-                  ${escapeHtml(activeRecord.fullName)}
-                </h3>
-              </div>
-
-              <div style="text-align:right;">
-                <span style="font-size:0.76rem;color:var(--text-muted);display:block;margin-bottom:4px;">
-                  Simulated Application Status (Click to Preview Statuses)
-                </span>
-                <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;">
-                  ${["Submitted", "Under Review", "Approved", "Rejected"]
-                    .map(
-                      (st) => `
-                    <button
-                      type="button"
-                      class="btn btn-sm ${
-                        activeRecord.status === st ? "btn-primary" : "btn-secondary"
-                      } sim-demo-status-btn"
-                      data-status="${st}"
-                    >${st}</button>
-                  `
-                    )
-                    .join("")}
-                </div>
-              </div>
-            </div>
-
-            <!-- 4-Step Visual Progress Tracker -->
-            <div class="status-tracker-steps">
-              <div class="status-step ${
-                ["Submitted", "Under Review", "Approved", "Rejected"].includes(activeRecord.status)
-                  ? "active-step"
-                  : ""
-              }">
-                1. Submitted
-              </div>
-              <div class="status-step ${
-                ["Under Review", "Approved", "Rejected"].includes(activeRecord.status)
-                  ? "active-step"
-                  : ""
-              }">
-                2. Under Review
-              </div>
-              <div class="status-step ${
-                activeRecord.status === "Approved" ? "approved-step" : ""
-              }">
-                3. Approved
-              </div>
-              <div class="status-step ${
-                activeRecord.status === "Rejected" ? "rejected-step" : ""
-              }">
-                4. Rejected (If Applicable)
-              </div>
-            </div>
-
-            <!-- Status Explanation Message -->
-            <div class="notice-banner" style="margin-bottom:18px;">
-              <div>
-                ${
-                  activeRecord.status === "Submitted"
-                    ? `<strong>Sample Status — Submitted:</strong> This simulated demo record (<code>${escapeHtml(
-                        activeRecord.referenceNumber
-                      )}</code>) illustrates an application that has been submitted and is awaiting initial review.`
-                    : activeRecord.status === "Under Review"
-                    ? `<strong>Sample Status — Under Review:</strong> This simulated demo record for <strong>${escapeHtml(
-                        activeRecord.desiredProgram
-                      )} (${escapeHtml(
-                        activeRecord.yearLevel
-                      )})</strong> illustrates an application currently being evaluated.`
-                    : activeRecord.status === "Approved"
-                    ? `<strong>Sample Status — Approved:</strong> This simulated demo record for <strong>${escapeHtml(
-                        activeRecord.desiredProgram
-                      )} (${escapeHtml(
-                        activeRecord.yearLevel
-                      )})</strong> illustrates an approved admission application.`
-                    : `<strong>Sample Status — Rejected:</strong> This simulated demo record illustrates an application marked as Rejected for demonstration purposes.`
-                }
-              </div>
-            </div>
-
-            <!-- Sample Application Details Grid -->
-            <div class="form-grid">
-              <div class="dash-list-item">
-                <div>
-                  <div class="dash-item-sub">Sample Applicant Name</div>
-                  <div class="dash-item-title">${escapeHtml(activeRecord.fullName)}</div>
-                </div>
-              </div>
-
-              <div class="dash-list-item">
-                <div>
-                  <div class="dash-item-sub">Applying For Year Level</div>
-                  <div class="dash-item-title">${escapeHtml(activeRecord.yearLevel)}</div>
-                </div>
-              </div>
-
-              <div class="dash-list-item">
-                <div>
-                  <div class="dash-item-sub">Preferred Program (1st Choice)</div>
-                  <div class="dash-item-title">${escapeHtml(activeRecord.desiredProgram)}</div>
-                </div>
-              </div>
-
-              <div class="dash-list-item">
-                <div>
-                  <div class="dash-item-sub">Alternative Program (2nd Choice)</div>
-                  <div class="dash-item-title">${escapeHtml(
-                    activeRecord.secondChoiceProgram || "None"
-                  )}</div>
-                </div>
-              </div>
-
-              <div class="dash-list-item">
-                <div>
-                  <div class="dash-item-sub">Applicant Classification</div>
-                  <div class="dash-item-title">${escapeHtml(activeRecord.applicantType)}</div>
-                </div>
-              </div>
-
-              <div class="dash-list-item">
-                <div>
-                  <div class="dash-item-sub">Email &amp; Contact Number (Sample)</div>
-                  <div class="dash-item-title">${escapeHtml(activeRecord.email)} &bull; ${escapeHtml(
-              activeRecord.contactNumber
-            )}</div>
-                </div>
-              </div>
-
-              <div class="dash-list-item">
-                <div>
-                  <div class="dash-item-sub">Previous School &amp; Graduation Year (Sample)</div>
-                  <div class="dash-item-title">${escapeHtml(
-                    activeRecord.previousSchool
-                  )} (${escapeHtml(activeRecord.graduationYear || "2026")})</div>
-                </div>
-              </div>
-
-              <div class="dash-list-item">
-                <div>
-                  <div class="dash-item-sub">Educational Background &amp; Sample Date</div>
-                  <div class="dash-item-title">${escapeHtml(
-                    activeRecord.educationalBackground
-                  )} &bull; ${escapeHtml(formatReadableDate(activeRecord.submittedDate))}</div>
-                </div>
-              </div>
-            </div>
-          </div>
-        `
-          : ""
-      }
     `;
 
-    container.querySelectorAll("[data-demo-app-nav]").forEach((btn) => {
-      btn.addEventListener("click", () => navigateTo(btn.getAttribute("data-demo-app-nav")));
-    });
-
-    const stFilterEl = document.getElementById("demoStatusFilterSelect");
-    if (stFilterEl) {
-      stFilterEl.addEventListener("change", (e) => {
-        demoStatusFilter = e.target.value;
-        renderStatus();
+    // Bind Copy Button
+    const copyBtn = document.getElementById("pubCopyRefBtn");
+    const copyIndicator = document.getElementById("pubCopyFeedback");
+    if (copyBtn) {
+      copyBtn.addEventListener("click", async () => {
+        const refToCopy = copyBtn.getAttribute("data-ref") || app.referenceNumber;
+        await copyReferenceNumberToClipboard(refToCopy, copyBtn, copyIndicator);
       });
     }
 
-    const yrFilterEl = document.getElementById("demoYearFilterSelect");
-    if (yrFilterEl) {
-      yrFilterEl.addEventListener("change", (e) => {
-        demoYearFilter = e.target.value;
-        renderStatus();
+    // Bind Print Button
+    const printBtn = document.getElementById("pubPrintReceiptBtn");
+    if (printBtn) {
+      printBtn.addEventListener("click", () => window.print());
+    }
+
+    // Bind Submit Another Application Button
+    const newAppBtn = document.getElementById("pubNewAppBtn");
+    if (newAppBtn) {
+      newAppBtn.addEventListener("click", () => {
+        try {
+          sessionStorage.removeItem("bu_public_app_confirmation");
+        } catch (_) {}
+        renderPublicFormView();
+        window.scrollTo({ top: 0, behavior: "smooth" });
       });
     }
 
-    container.querySelectorAll(".inspect-demo-rec-btn").forEach((btn) => {
-      btn.addEventListener("click", () => {
-        selectedDemoRecordId = btn.getAttribute("data-id");
-        renderStatus();
+    // Bind Return to Login Button
+    const returnLoginBtn = document.getElementById("pubReturnLoginBtn");
+    if (returnLoginBtn) {
+      returnLoginBtn.addEventListener("click", () => {
+        if (window.StudentHubApp && typeof window.StudentHubApp.showLoginScreen === "function") {
+          window.StudentHubApp.showLoginScreen();
+        } else {
+          window.location.hash = "";
+        }
       });
-    });
-
-    container.querySelectorAll(".sim-demo-status-btn").forEach((btn) => {
-      btn.addEventListener("click", () => {
-        if (!activeRecord) return;
-        const newStatus = btn.getAttribute("data-status");
-        const currState = StudentHubStorage.getState();
-        currState.demoApplicantRecords = (currState.demoApplicantRecords || []).map((r) =>
-          r.id === activeRecord.id ? { ...r, status: newStatus } : r
-        );
-        StudentHubStorage.saveState(currState);
-        refreshAll();
-        showToast(
-          `Simulated status for demo record ${activeRecord.referenceNumber} set to: ${newStatus}`,
-          "info"
-        );
-      });
-    });
+    }
   }
 
   return {
     renderLanding,
     renderForm,
-    renderStatus
+    renderStatus,
+    openApplicantAccountModal,
+    openEmailOtpModal,
+    initPublicAdmission
   };
 })();
 

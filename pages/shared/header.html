@@ -1,13 +1,7 @@
+<!-- Top navigation bar and user profile dropdown. -->
       <!-- ==================== TOP NAVIGATION BAR / HEADER ==================== -->
       <header class="topbar">
         <div class="topbar-left">
-          <button type="button" class="icon-btn mobile-menu-btn" id="mobileMenuBtn" aria-label="Open Navigation Menu">
-            <svg viewBox="0 0 24 24" width="22" height="22" stroke="currentColor" stroke-width="2" fill="none">
-              <line x1="3" y1="12" x2="21" y2="12"></line>
-              <line x1="3" y1="6" x2="21" y2="6"></line>
-              <line x1="3" y1="18" x2="21" y2="18"></line>
-            </svg>
-          </button>
           <div class="page-breadcrumb">
             <span class="breadcrumb-root">BANTUG UNIVERSITY</span>
             <span class="breadcrumb-sep">/</span>
@@ -23,19 +17,18 @@
               <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
             </svg>
             <input type="search" id="globalSearchInput" class="global-search-input"
-              placeholder="Search BSIT 2-2 subjects, instructors, tasks, notices..." aria-label="Global Portal Search"
+              placeholder="Search subjects, instructors, courses, tasks, and notices..." aria-label="Global Portal Search"
               autocomplete="off" />
             <div class="global-search-results" id="globalSearchResults" hidden></div>
           </div>
         </div>
 
         <div class="topbar-right">
-          <!-- Role Switcher Pill (Quick Demo Switcher) -->
-          <button type="button" class="role-Indicator-btn" id="quickSwitchRoleBtn"
-            title="Switch Portal Role or Return to Login">
+          <!-- Connected Account Role Badge (Read-Only) -->
+          <div class="role-indicator-badge" id="topbarRoleBadge" title="Authenticated Account Role">
             <span class="role-dot" id="topbarRoleDot"></span>
             <span id="topbarRoleLabel">Student</span>
-          </button>
+          </div>
 
           <div class="topbar-date" id="topbarDateDisplay" title="Current Date"></div>
 

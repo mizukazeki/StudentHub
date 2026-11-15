@@ -1,3 +1,4 @@
+// Local storage cache and backend REST API synchronization.
 /**
  * ============================================================================
  * BANTUG UNIVERSITY - Student Portal System
@@ -3140,6 +3141,27 @@ const StudentHubStorage = (function () {
       markTasksCompleted: false,
       viewLearningResources: false,
       manageApplications: false
+    },
+    admin: {
+      viewDashboard: true,
+      editOwnProfile: true,
+      viewSubjects: true,
+      manageSubjects: true,
+      viewClassSchedule: true,
+      manageGrades: true,
+      viewGrades: true,
+      manageAttendance: true,
+      viewAttendance: true,
+      createAnnouncements: true,
+      viewAnnouncements: true,
+      createAssignments: true,
+      editAssignments: true,
+      submitAssignments: false,
+      markTasksCompleted: false,
+      viewLearningResources: true,
+      manageApplications: true,
+      manageUsers: true,
+      manageAdminPanel: true
     }
   };
 
@@ -3464,20 +3486,64 @@ const StudentHubStorage = (function () {
 
         activeXamppApiUrl = baseUrl;
 
-        const localCurrent = loadState();
         const activeSession = getSession();
+        if (data && data.authenticatedRole && activeSession) {
+          if (data.authenticatedRole === "guest" && activeSession.role !== "guest") {
+            // Token expired or invalid on server
+            localStorage.removeItem(SESSION_KEY);
+            sessionStorage.removeItem(SESSION_KEY);
+            if (typeof window !== "undefined" && window.location) {
+              window.location.reload();
+            }
+            return null;
+          } else if (data.authenticatedRole !== "guest" && activeSession.role !== data.authenticatedRole) {
+            // Role tampering detected: server authoritative role overrides client
+            console.warn(`[StudentHub Security] Overriding client role "${activeSession.role}" with authoritative server role "${data.authenticatedRole}".`);
+            activeSession.role = data.authenticatedRole;
+            saveSession(activeSession);
+          }
+        }
+
+        const localCurrent = loadState();
         const baseState =
           data.state && typeof data.state === "object" && data.schemaVersion === SCHEMA_VERSION
             ? ensureValidSchema(data.state)
             : localCurrent;
 
-        // Preserve the currently logged-in student or faculty profile so background DB loads
-        // never clobber an active user session.
-        if (activeSession && activeSession.role === "student" && localCurrent.profile) {
-          baseState.profile = localCurrent.profile;
-        }
-        if (activeSession && activeSession.role === "faculty" && localCurrent.facultyProfile) {
+        // Phase 2: Role-based state sanitization
+        if (activeSession && activeSession.role === "applicant") {
+          baseState.profile = null;
+          baseState.tasks = [];
+          baseState.subjects = [];
+          baseState.grades = {};
+          baseState.attendance = [];
+          baseState.schedules = [];
+        } else if (activeSession && activeSession.role === "student") {
+          baseState.applications = [];
+          baseState.demoApplicantRecords = [];
+          if (data.state && data.state.profile) {
+            baseState.profile = data.state.profile;
+          }
+          if (data.state && Array.isArray(data.state.tasks)) {
+            baseState.tasks = data.state.tasks;
+          }
+          if (data.state && data.state.grades) {
+            baseState.grades = data.state.grades;
+          }
+          if (data.state && Array.isArray(data.state.attendance)) {
+            baseState.attendance = data.state.attendance;
+          }
+          if (data.state && Array.isArray(data.state.subjects)) {
+            baseState.subjects = data.state.subjects;
+          }
+        } else if (activeSession && activeSession.role === "faculty" && localCurrent.facultyProfile) {
           baseState.facultyProfile = localCurrent.facultyProfile;
+        }
+
+        if (Array.isArray(data.catalogSubjects) && data.catalogSubjects.length > 0) {
+          baseState.catalogSubjects = data.catalogSubjects;
+        } else if (data.state && Array.isArray(data.state.catalogSubjects) && data.state.catalogSubjects.length > 0) {
+          baseState.catalogSubjects = data.state.catalogSubjects;
         }
 
         if (Array.isArray(data.applications) && data.applications.length > 0) {
@@ -3973,23 +4039,55 @@ const StudentHubStorage = (function () {
   }
 
   /**
-   * Return all subjects across the university (9 official BSIT 2-2 subjects + 24 extended catalog subjects + any custom DB subjects)
+   * Return all subjects across the university (General Catalog)
+   * Separated strictly from enrolled subjects.
    */
   function getAllUniversitySubjects(customState = null) {
     const state = customState || loadState();
+    if (Array.isArray(state.catalogSubjects) && state.catalogSubjects.length > 0) {
+      const seen = new Set();
+      const catalog = [];
+      for (const s of state.catalogSubjects) {
+        if (!s || !s.subjectCode) continue;
+        const code = String(s.subjectCode).trim().toUpperCase();
+        if (seen.has(code)) continue;
+        seen.add(code);
+        catalog.push({
+          ...s,
+          id: s.id || `subj_${code.toLowerCase()}`,
+          subjectCode: code,
+          fullSubjectName: s.fullSubjectName || (s.courseCode ? `${s.courseCode} – ${s.subjectName}` : s.subjectName),
+          units: Number(s.units) || 3,
+          isCatalogItem: true
+        });
+      }
+      return catalog;
+    }
+
     const baseSchedules = (state.schedules || getInitialSubjects()).map((s) => ({
       ...s,
-      isSampleData: false
+      isSampleData: false,
+      isCatalogItem: true
     }));
     const extended = getExtendedCatalogSubjects().map((s) => ({
       ...s,
-      isSampleData: true
+      isSampleData: true,
+      isCatalogItem: true
     }));
     const customList = Array.isArray(state.customUniversitySubjects)
-      ? state.customUniversitySubjects.map((s) => ({ ...s, isSampleData: true, isCustomDbSchedule: true }))
+      ? state.customUniversitySubjects.map((s) => ({ ...s, isSampleData: true, isCustomDbSchedule: true, isCatalogItem: true }))
       : [];
 
-    return [...baseSchedules, ...extended, ...customList];
+    const seen = new Set();
+    const result = [];
+    for (const sub of [...baseSchedules, ...extended, ...customList]) {
+      const code = String(sub.subjectCode || "").trim().toUpperCase();
+      if (!seen.has(code)) {
+        seen.add(code);
+        result.push(sub);
+      }
+    }
+    return result;
   }
 
   /**
@@ -4096,46 +4194,85 @@ const StudentHubStorage = (function () {
   }
 
   /**
-   * Return the subjects assigned to a student based on their course, year level, and section.
-   * For BSIT 2-2 students, returns the 9 official BSIT 2-2 subjects.
-   * For the preloaded Year 1 / Year 2 / Year 3 / Year 4 BSIT demo sections,
-   * returns their section's configured BSIT subjects.
-   * Does NOT automatically show BSIT 2-2 subjects to students from other sections.
+   * Return the subjects actually assigned or enrolled to the authenticated student.
+   * Priority: state.subjects from MySQL database.
+   * Does NOT assign BSIT 2-2 as a default.
+   * Does NOT insert random subjects to fill empty sections.
+   * Returns empty array if student has no enrolled subjects.
    */
   function getStudentEnrolledSubjects(profileOverride = null, customSchedules = null) {
     const state = loadState();
     const profile = profileOverride || state.profile;
+    if (!profile || typeof profile !== "object") return [];
+
+    // 1. Authoritative: Database enrolled subjects in state.subjects
+    if (Array.isArray(state.subjects) && !customSchedules) {
+      const seen = new Set();
+      const result = [];
+      for (const sub of state.subjects) {
+        if (!sub || !sub.subjectCode) continue;
+        const code = String(sub.subjectCode).trim().toUpperCase();
+        if (seen.has(code)) continue;
+        seen.add(code);
+        result.push({
+          ...sub,
+          id: sub.id || `subj_${code.toLowerCase()}`,
+          subjectCode: code,
+          fullSubjectName: sub.fullSubjectName || (sub.courseCode ? `${sub.courseCode} – ${sub.subjectName}` : sub.subjectName),
+          section: sub.section || profile.section || "",
+          course: sub.course || profile.course || "Bachelor of Science in Information Technology",
+          yearLevel: sub.yearLevel || profile.yearLevel || "",
+          units: Number(sub.units) || 3,
+          instructor: sub.instructor || "Not specified",
+          scheduleSummary: sub.scheduleSummary || "Not specified",
+          description: sub.description || "",
+          sessions: Array.isArray(sub.sessions) ? sub.sessions : []
+        });
+      }
+      return result;
+    }
+
+    // 2. Fallback: Filter by genuine student section from database profile
+    const studentSection = String(profile.section || "").trim().toUpperCase().replace(/\s+/g, " ");
+    const studentYear = normalizeYearLevel(profile.yearLevel, "");
+    const studentCourse = String(profile.course || "").trim().toLowerCase();
+
+    if (!studentSection) return [];
+
     const baseSubjects = customSchedules || state.schedules || [];
     const allSubjects = [
       ...baseSubjects,
       ...getExtendedCatalogSubjects(),
       ...(Array.isArray(state.customUniversitySubjects) ? state.customUniversitySubjects : [])
     ];
-    if (!profile || typeof profile !== "object") return [];
 
-    const studentSection = String(profile.section || "").trim().toUpperCase().replace(/\s+/g, " ");
-    const studentYear = normalizeYearLevel(profile.yearLevel, "Year 2");
-    const studentCourse = String(profile.course || "").trim().toLowerCase();
-
-    if (!studentSection) return [];
-
-    return allSubjects.filter((sub) => {
-      const subSection = String(sub.section || "BSIT 2-2").trim().toUpperCase().replace(/\s+/g, " ");
-      const subYear = normalizeYearLevel(sub.yearLevel || "Year 2", "Year 2");
+    const seen = new Set();
+    const matches = [];
+    allSubjects.forEach((sub) => {
+      const subSection = String(sub.section || "").trim().toUpperCase().replace(/\s+/g, " ");
+      const subYear = normalizeYearLevel(sub.yearLevel || "", "");
       const subCourse = String(
         sub.course || "Bachelor of Science in Information Technology"
       ).trim().toLowerCase();
 
       const sectionMatches = subSection === studentSection;
-      const yearMatches = subYear === studentYear;
+      const yearMatches = !studentYear || !subYear || subYear === studentYear;
       const courseMatches =
+        !studentCourse ||
         subCourse === studentCourse ||
-        (studentCourse.includes("information technology") &&
-          subCourse.includes("information technology")) ||
+        (studentCourse.includes("information technology") && subCourse.includes("information technology")) ||
         (studentCourse.includes("bsit") && subCourse.includes("information technology"));
 
-      return sectionMatches && yearMatches && courseMatches;
+      if (sectionMatches && yearMatches && courseMatches) {
+        const code = String(sub.subjectCode || "").trim().toUpperCase();
+        if (!seen.has(code)) {
+          seen.add(code);
+          matches.push(sub);
+        }
+      }
     });
+
+    return matches;
   }
 
   /**
@@ -4798,7 +4935,7 @@ const StudentHubStorage = (function () {
       const localRaw = localStorage.getItem(SESSION_KEY) || sessionStorage.getItem(SESSION_KEY);
       if (!localRaw) return null;
       const parsed = JSON.parse(localRaw);
-      if (parsed && ["student", "faculty", "applicant"].includes(parsed.role)) {
+      if (parsed && ["student", "faculty", "applicant", "admin"].includes(parsed.role)) {
         return parsed;
       }
       return null;
@@ -4819,6 +4956,26 @@ const StudentHubStorage = (function () {
         sessionStorage.setItem(SESSION_KEY, payload);
         localStorage.removeItem(SESSION_KEY);
       }
+
+      // Phase 2: Role-based session synchronization and cleanup
+      const state = loadState();
+      if (sessionObj.role === "student" && sessionObj.studentProfile) {
+        state.profile = {
+          ...state.profile,
+          ...sessionObj.studentProfile
+        };
+        state.applications = [];
+        state.demoApplicantRecords = [];
+        saveState(state, { systemReset: true });
+      } else if (sessionObj.role === "applicant") {
+        state.profile = null;
+        state.tasks = [];
+        state.subjects = [];
+        state.grades = {};
+        state.attendance = [];
+        state.schedules = [];
+        saveState(state, { systemReset: true });
+      }
     } catch (_) { }
   }
 
@@ -4826,6 +4983,15 @@ const StudentHubStorage = (function () {
     try {
       localStorage.removeItem(SESSION_KEY);
       sessionStorage.removeItem(SESSION_KEY);
+      sessionStorage.removeItem("bu_last_submitted_app");
+      // Phase 2: Wipe sensitive user data upon logout so next user never sees old cached data
+      const state = loadState();
+      state.profile = null;
+      state.tasks = [];
+      state.grades = {};
+      state.attendance = [];
+      state.applicantNotifications = [];
+      saveState(state, { systemReset: true });
     } catch (_) { }
   }
 
@@ -4884,6 +5050,73 @@ const StudentHubStorage = (function () {
     state.applications = [];
     saveState(state, { systemReset: true });
     return state;
+  }
+
+  /**
+   * Phase 8 Admin Panel Backend API Integrations
+   */
+  async function fetchAdminStats() {
+    return await requestBackendJson("/api/admin/stats");
+  }
+
+  async function fetchAdminUsers(params = {}) {
+    const qs = new URLSearchParams(params).toString();
+    return await requestBackendJson(`/api/admin/users${qs ? `?${qs}` : ""}`);
+  }
+
+  async function createAdminUser(userData) {
+    return await requestBackendJson("/api/admin/users", {
+      method: "POST",
+      body: userData
+    });
+  }
+
+  async function fetchAdminUser(userId) {
+    return await requestBackendJson(`/api/admin/users/${encodeURIComponent(userId)}`);
+  }
+
+  async function updateAdminUser(userId, userData) {
+    return await requestBackendJson(`/api/admin/users/${encodeURIComponent(userId)}`, {
+      method: "PUT",
+      body: userData
+    });
+  }
+
+  async function updateAdminUserStatus(userId, isActive) {
+    return await requestBackendJson(`/api/admin/users/${encodeURIComponent(userId)}/status`, {
+      method: "PUT",
+      body: { isActive }
+    });
+  }
+
+  async function resetAdminUserPassword(userId) {
+    return await requestBackendJson(`/api/admin/users/${encodeURIComponent(userId)}/reset-password`, {
+      method: "POST",
+      body: {}
+    });
+  }
+
+  async function deleteAdminUser(userId) {
+    return await requestBackendJson(`/api/admin/users/${encodeURIComponent(userId)}`, {
+      method: "DELETE"
+    });
+  }
+
+  async function fetchAdminApplications(params = {}) {
+    const qs = new URLSearchParams(params).toString();
+    return await requestBackendJson(`/api/admin/applications${qs ? `?${qs}` : ""}`);
+  }
+
+  async function updateAdminApplicationStatus(referenceNumber, payload) {
+    return await requestBackendJson(`/api/admin/applications/${encodeURIComponent(referenceNumber)}/status`, {
+      method: "PUT",
+      body: payload
+    });
+  }
+
+  async function fetchAdminLogs(params = {}) {
+    const qs = new URLSearchParams(params).toString();
+    return await requestBackendJson(`/api/admin/logs${qs ? `?${qs}` : ""}`);
   }
 
   return {
@@ -4961,7 +5194,18 @@ const StudentHubStorage = (function () {
     deleteScheduleSessionInDatabase,
     mergeApplicationsFromDatabase,
     mergeAnnouncementsFromDatabase,
-    mergeSchedulesFromDatabase
+    mergeSchedulesFromDatabase,
+    fetchAdminStats,
+    fetchAdminUsers,
+    createAdminUser,
+    fetchAdminUser,
+    updateAdminUser,
+    updateAdminUserStatus,
+    resetAdminUserPassword,
+    deleteAdminUser,
+    fetchAdminApplications,
+    updateAdminApplicationStatus,
+    fetchAdminLogs
   };
 }) ();
 

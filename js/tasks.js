@@ -1,3 +1,4 @@
+// Assignment tracking, deadline countdowns, and task submissions.
 /**
  * ============================================================================
  * BANTUG UNIVERSITY - Student Portal System

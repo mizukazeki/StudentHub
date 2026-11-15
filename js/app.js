@@ -1,3 +1,4 @@
+// Core application routing, UI navigation, and lifecycle management.
 /**
  * ============================================================================
  * BANTUG UNIVERSITY - Student Portal System
@@ -27,9 +28,15 @@ const StudentHubApp = (function () {
     "faculty-announcements": "Faculty Announcements",
     "faculty-applications": "Student Applications",
     // Applicant Portal Sections
-    "applicant-landing": "BANTUG UNIVERSITY Admissions",
+    "applicant-landing": "Admission Overview",
     "applicant-form": "Online Application Form",
-    "applicant-status": "Application Status Tracker",
+    "applicant-status": "Admission Overview",
+    // Administrator Portal Sections
+    "admin-dashboard": "Administrator Overview",
+    "admin-users": "User Account Management",
+    "admin-applications": "Admissions & Applications",
+    "admin-logs": "Audit Trail & Activity Logs",
+    "admin-settings": "Administrator Security & Settings",
     // Shared
     settings: "Portal Settings"
   };
@@ -41,8 +48,6 @@ const StudentHubApp = (function () {
       "subjects",
       "schedule",
       "grades",
-      "attendance",
-      "tasks",
       "announcements",
       "resources",
       "settings"
@@ -51,21 +56,27 @@ const StudentHubApp = (function () {
       "faculty-dashboard",
       "faculty-profile",
       "faculty-classes",
-      "faculty-attendance",
       "faculty-grades",
-      "faculty-tasks",
       "faculty-announcements",
       "faculty-applications",
       "resources",
       "settings"
     ],
-    applicant: ["applicant-landing", "applicant-form", "applicant-status", "settings"]
+    applicant: ["applicant-landing", "applicant-form"],
+    admin: [
+      "admin-dashboard",
+      "admin-users",
+      "admin-applications",
+      "admin-logs",
+      "admin-settings"
+    ]
   };
 
   const ROLE_HOME_SECTION = {
     student: "dashboard",
     faculty: "faculty-dashboard",
-    applicant: "applicant-landing"
+    applicant: "applicant-landing",
+    admin: "admin-dashboard"
   };
 
   let currentSection = "dashboard";
@@ -295,16 +306,12 @@ const StudentHubApp = (function () {
   function getAllowedSectionsForCurrentSession() {
     const role = getActiveRole();
     if (role === "applicant") {
-      if (StudentHubStorage.isApplicantDemoSession()) {
-        return ["applicant-status", "applicant-landing", "settings"];
-      }
-      return ["applicant-landing", "applicant-form", "settings"];
+      return ["applicant-landing", "applicant-form"];
     }
     return ROLE_ALLOWED_SECTIONS[role] || ROLE_ALLOWED_SECTIONS.student;
   }
 
   function applyRolePermissions(role) {
-    const isApplicantDemo = role === "applicant" && StudentHubStorage.isApplicantDemoSession();
     const allowedSections = getAllowedSectionsForCurrentSession();
 
     // 1. Show only sidebar items permitted for this role/session
@@ -332,53 +339,74 @@ const StudentHubApp = (function () {
     const metaEl = document.getElementById("topbarStudentMeta");
     const avatarEl = document.getElementById("topbarAvatar");
     const termEl = document.getElementById("sidebarTermText");
+    const semesterCard = document.querySelector(".semester-card");
 
     if (termEl) {
       termEl.textContent = state.profile.academicTerm || "2nd Sem, AY 2026–2027";
     }
 
     if (role === "faculty") {
+      if (semesterCard) semesterCard.hidden = false;
       if (portalSub) portalSub.textContent = "Faculty Portal System";
       if (roleBadgeText)
         roleBadgeText.textContent = `Faculty: ${state.facultyProfile.fullName || "Instructor"}`;
       if (roleSubText) roleSubText.textContent = state.facultyProfile.department || "IT Department";
-      if (topbarRoleLabel) topbarRoleLabel.textContent = "Faculty Role";
+      if (topbarRoleLabel) topbarRoleLabel.textContent = "Faculty";
       if (nameEl) nameEl.textContent = state.facultyProfile.fullName || "Faculty Member";
       if (metaEl)
         metaEl.textContent = `${state.facultyProfile.facultyId || "FAC"} • ${state.facultyProfile.advisorySection || "BSIT 2-2"
           }`;
       if (avatarEl) avatarEl.src = "assets/images/default-avatar.svg";
     } else if (role === "applicant") {
-      if (isApplicantDemo) {
-        if (portalSub) portalSub.textContent = "Applicant Demo Account";
-        if (roleBadgeText) roleBadgeText.textContent = "Applicant Demo Account";
-        if (roleSubText) roleSubText.textContent = "Sample Application Statuses";
-        if (topbarRoleLabel) topbarRoleLabel.textContent = "Applicant Demo Account";
-        const demoProf = state.demoApplicantProfile || {};
-        if (nameEl) nameEl.textContent = demoProf.fullName || "Ceasar Villanueva (Demo)";
-        if (metaEl) metaEl.textContent = "Applicant Demo Account";
-      } else {
-        if (portalSub) portalSub.textContent = "Online Admissions Portal";
-        if (roleBadgeText) roleBadgeText.textContent = "Applicant Portal (Apply Online)";
-        if (roleSubText) roleSubText.textContent = "New Student Application";
-        if (topbarRoleLabel) topbarRoleLabel.textContent = "Applicant Portal";
-        if (nameEl) nameEl.textContent = "Prospective Applicant";
-        if (metaEl) metaEl.textContent = "Online Application Form";
+      if (semesterCard) semesterCard.hidden = true;
+      if (portalSub) portalSub.textContent = "Admissions Portal";
+      if (roleBadgeText) roleBadgeText.textContent = "Applicant Portal";
+      if (roleSubText) roleSubText.textContent = "Admission Overview";
+      if (topbarRoleLabel) topbarRoleLabel.textContent = "Applicant";
+
+      // Display actual applicant name if available, otherwise "Applicant"
+      let applicantDisplayName = "Applicant";
+      try {
+        const cached = sessionStorage.getItem("bu_last_submitted_app");
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (parsed && parsed.fullName) applicantDisplayName = parsed.fullName;
+        }
+      } catch (_) {}
+      const sess = StudentHubStorage.getSession();
+      if (sess && sess.displayName && sess.displayName !== "Prospective Applicant") {
+        applicantDisplayName = sess.displayName;
       }
+      if (nameEl) nameEl.textContent = applicantDisplayName;
+      if (metaEl) metaEl.textContent = "Admissions Overview";
+      if (avatarEl) avatarEl.src = "assets/images/default-avatar.svg";
+    } else if (role === "admin") {
+      if (semesterCard) semesterCard.hidden = true;
+      if (portalSub) portalSub.textContent = "Secure Administration";
+      if (roleBadgeText) roleBadgeText.textContent = "Administrator Panel";
+      if (roleSubText) roleSubText.textContent = "Full System Control";
+      if (topbarRoleLabel) topbarRoleLabel.textContent = "Administrator";
+
+      const sess = StudentHubStorage.getSession();
+      const adminName = sess?.displayName || "System Administrator";
+      if (nameEl) nameEl.textContent = adminName;
+      if (metaEl) metaEl.textContent = "Root Admin • bantug.edu.example";
       if (avatarEl) avatarEl.src = "assets/images/default-avatar.svg";
     } else {
+      if (semesterCard) semesterCard.hidden = false;
       if (portalSub) portalSub.textContent = "Student Portal System";
+      const studentSec = state.profile?.section || "";
+      const studentYr = state.profile?.yearLevel || "";
+      const secLabel = [studentYr, studentSec].filter(Boolean).join(" • ");
       if (roleBadgeText)
-        roleBadgeText.textContent = `Student Portal (${state.profile.section || "BSIT 2-2"})`;
+        roleBadgeText.textContent = studentSec ? `Student Portal (${studentSec})` : "Student Portal";
       if (roleSubText)
-        roleSubText.textContent = `${state.profile.yearLevel || "Year 2"} • ${state.profile.section || "BSIT 2-2"
-          }`;
-      if (topbarRoleLabel) topbarRoleLabel.textContent = "Student Role";
-      if (nameEl) nameEl.textContent = state.profile.fullName || "Student";
+        roleSubText.textContent = secLabel || "Enrolled Student";
+      if (topbarRoleLabel) topbarRoleLabel.textContent = "Student";
+      if (nameEl) nameEl.textContent = state.profile?.fullName || "Student";
       if (metaEl)
-        metaEl.textContent = `${state.profile.yearLevel || "Year 2"} • ${state.profile.section || "BSIT 2-2"
-          }`;
-      if (avatarEl) avatarEl.src = state.profile.avatar || "assets/images/default-avatar.svg";
+        metaEl.textContent = secLabel || "Enrolled Student";
+      if (avatarEl) avatarEl.src = state.profile?.avatar || "assets/images/default-avatar.svg";
     }
   }
 
@@ -395,22 +423,19 @@ const StudentHubApp = (function () {
     const role = session.role || "student";
     const allowed = getAllowedSectionsForCurrentSession();
 
+    // Applicant redirects: applicant-status seamlessly maps to applicant-landing
+    if (role === "applicant" && sectionId === "applicant-status") {
+      sectionId = "applicant-landing";
+    }
+
     if (!SECTION_TITLES[sectionId] || !allowed.includes(sectionId)) {
-      if (sectionId === "applicant-status" && role === "applicant" && !StudentHubStorage.isApplicantDemoSession()) {
-        showToast(
-          "Application Status records are only visible when signed into the separate Applicant Demo Account.",
-          "info"
-        );
-      } else if (sectionId && SECTION_TITLES[sectionId] && !allowed.includes(sectionId)) {
+      if (sectionId && SECTION_TITLES[sectionId] && !allowed.includes(sectionId)) {
         showToast(
           `Access Denied: Your ${role.toUpperCase()} account cannot access "${SECTION_TITLES[sectionId]}".`,
           "error"
         );
       }
-      sectionId =
-        role === "applicant" && StudentHubStorage.isApplicantDemoSession()
-          ? "applicant-status"
-          : ROLE_HOME_SECTION[role] || "dashboard";
+      sectionId = ROLE_HOME_SECTION[role] || "dashboard";
     }
 
     currentSection = sectionId;
@@ -433,8 +458,6 @@ const StudentHubApp = (function () {
     if (titleEl) {
       titleEl.textContent = SECTION_TITLES[sectionId];
     }
-
-    closeMobileSidebar();
 
     if (updateHash && window.location.hash !== `#${sectionId}`) {
       history.replaceState(null, "", `#${sectionId}`);
@@ -519,6 +542,22 @@ const StudentHubApp = (function () {
       case "applicant-status":
         if (window.StudentHubApplicant) window.StudentHubApplicant.renderStatus();
         break;
+      // Administrator Modules
+      case "admin-dashboard":
+        if (window.StudentHubAdmin) window.StudentHubAdmin.renderDashboard();
+        break;
+      case "admin-users":
+        if (window.StudentHubAdmin) window.StudentHubAdmin.renderUsers("all");
+        break;
+      case "admin-applications":
+        if (window.StudentHubAdmin) window.StudentHubAdmin.renderApplications();
+        break;
+      case "admin-logs":
+        if (window.StudentHubAdmin) window.StudentHubAdmin.renderLogs();
+        break;
+      case "admin-settings":
+        if (window.StudentHubAdmin) window.StudentHubAdmin.renderSettings();
+        break;
       // Shared Settings
       case "settings":
         if (window.StudentHubSettings) window.StudentHubSettings.render();
@@ -527,13 +566,45 @@ const StudentHubApp = (function () {
   }
 
   /**
-   * Show Login Screen and hide Portal Layout
+   * Show Public Admission Page (Independent of Portal Shell and Login)
+   */
+  function showAdmissionPage() {
+    const loginScreen = document.getElementById("loginScreen");
+    const appLayout = document.getElementById("appLayout");
+    const admissionScreen = document.getElementById("publicAdmissionScreen");
+
+    if (loginScreen) loginScreen.hidden = true;
+    if (appLayout) appLayout.hidden = true;
+    if (admissionScreen) admissionScreen.hidden = false;
+
+    const path = window.location.pathname.toLowerCase();
+    if (!path.endsWith("/admission.html") && !path.endsWith("/applicant.html")) {
+      window.location.hash = "#admission";
+    }
+
+    if (window.StudentHubApplicant && typeof window.StudentHubApplicant.initPublicAdmission === "function") {
+      window.StudentHubApplicant.initPublicAdmission();
+    }
+    syncUniversityLogo();
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  /**
+   * Show Login Screen and hide Portal Layout & Admission Page
    */
   function showLoginScreen() {
     const loginScreen = document.getElementById("loginScreen");
     const appLayout = document.getElementById("appLayout");
-    if (loginScreen) loginScreen.hidden = false;
+    const admissionScreen = document.getElementById("publicAdmissionScreen");
+
+    if (admissionScreen) admissionScreen.hidden = true;
     if (appLayout) appLayout.hidden = true;
+    if (loginScreen) loginScreen.hidden = false;
+
+    const hash = window.location.hash.replace("#", "").toLowerCase();
+    if (hash === "admission" || hash === "apply" || hash === "application") {
+      window.location.hash = "";
+    }
     syncUniversityLogo();
   }
 
@@ -548,6 +619,9 @@ const StudentHubApp = (function () {
     }
     const loginScreen = document.getElementById("loginScreen");
     const appLayout = document.getElementById("appLayout");
+    const admissionScreen = document.getElementById("publicAdmissionScreen");
+
+    if (admissionScreen) admissionScreen.hidden = true;
     if (loginScreen) loginScreen.hidden = true;
     if (appLayout) appLayout.hidden = false;
 
@@ -564,6 +638,14 @@ const StudentHubApp = (function () {
         ? "applicant-status"
         : ROLE_HOME_SECTION[role] || "dashboard");
     navigateTo(destination);
+
+    if (session.mustChangePassword) {
+      setTimeout(() => {
+        if (window.StudentHubAdmin && typeof window.StudentHubAdmin.promptMustChangePassword === "function") {
+          window.StudentHubAdmin.promptMustChangePassword();
+        }
+      }, 120);
+    }
   }
 
   /**
@@ -615,16 +697,6 @@ const StudentHubApp = (function () {
 
   function updateBadgesAndNotifications(state) {
     const role = getActiveRole();
-    const pendingOrOverdueTasks = (state.tasks || []).filter(
-      (t) => t.status === "Pending" || t.status === "Overdue"
-    );
-    const overdueTasks = pendingOrOverdueTasks.filter((t) => t.status === "Overdue");
-    const visibleAnnouncements =
-      role === "faculty"
-        ? state.announcements || []
-        : (state.announcements || []).filter((a) => a.published !== false);
-    const unreadAnnouncements = visibleAnnouncements.filter((a) => !a.read);
-
     const taskBadge = document.getElementById("navTaskBadge");
     const annBadge = document.getElementById("navAnnouncementBadge");
     const facAppsBadge = document.getElementById("navFacultyApplicationsBadge");
@@ -632,6 +704,55 @@ const StudentHubApp = (function () {
     const notifList = document.getElementById("notificationList");
 
     const showBadges = state.settings.unreadBadges !== false;
+
+    if (role === "applicant") {
+      // Phase 2: Applicants do not have student tasks or student announcements
+      if (taskBadge) taskBadge.hidden = true;
+      if (annBadge) annBadge.hidden = true;
+      if (facAppsBadge) facAppsBadge.hidden = true;
+
+      const appNotifs = (state.announcements || []).filter((a) => !a.read);
+      if (notifDot) notifDot.hidden = !(showBadges && appNotifs.length > 0);
+
+      if (notifList) {
+        if (appNotifs.length === 0) {
+          notifList.innerHTML = `
+            <div class="empty-state" style="padding: 20px 10px;">
+              <p style="margin:0;">No admission notifications.</p>
+            </div>
+          `;
+        } else {
+          notifList.innerHTML = appNotifs
+            .map(
+              (item) => `
+              <button type="button" class="notif-item" data-target-section="applicant-landing">
+                <span class="notif-item-title">${escapeHtml(item.title || item.subject)}</span>
+                <span class="notif-item-meta">Admission Notice • ${escapeHtml(formatReadableDate(item.date || item.createdAt))}</span>
+              </button>
+            `
+            )
+            .join("");
+
+          notifList.querySelectorAll(".notif-item").forEach((btn) => {
+            btn.addEventListener("click", () => {
+              document.getElementById("notificationDropdown").hidden = true;
+              navigateTo("applicant-landing");
+            });
+          });
+        }
+      }
+      return;
+    }
+
+    const pendingOrOverdueTasks = (state.tasks || []).filter(
+      (t) => t.status === "Pending" || t.status === "Overdue"
+    );
+    const overdueTasks = pendingOrOverdueTasks.filter((t) => t.status === "Overdue");
+    const visibleAnnouncements =
+      role === "faculty"
+        ? state.announcements || []
+        : (state.announcements || []).filter((a) => a.published !== false && !String(a.targetAudience || "").toLowerCase().includes("applicant"));
+    const unreadAnnouncements = visibleAnnouncements.filter((a) => !a.read);
 
     if (taskBadge) {
       taskBadge.hidden = !(showBadges && pendingOrOverdueTasks.length > 0);
@@ -725,51 +846,111 @@ const StudentHubApp = (function () {
     const role = getActiveRole();
     const matches = [];
 
-    if (role === "student" || role === "faculty") {
-      state.schedules.forEach((s) => {
-        const hay = `${s.subjectCode} ${s.courseCode || ""} ${s.subjectName} ${s.instructor}`.toLowerCase();
+    if (role === "student") {
+      const studentSubjects = StudentHubStorage.getStudentEnrolledSubjects(state.profile);
+      const catalogSubjects = StudentHubStorage.getAllUniversitySubjects();
+      const enrolledCodes = new Set(studentSubjects.map((s) => s.subjectCode));
+
+      const allSubjects = [...studentSubjects];
+      catalogSubjects.forEach((cat) => {
+        if (!enrolledCodes.has(cat.subjectCode)) {
+          allSubjects.push(cat);
+        }
+      });
+
+      allSubjects.forEach((s) => {
+        const hay = `${s.subjectCode || ""} ${s.courseCode || ""} ${s.subjectName || ""} ${
+          s.fullSubjectName || ""
+        } ${s.instructor || ""} ${s.course || ""} ${s.description || ""} ${s.scheduleSummary || ""}`.toLowerCase();
+        if (hay.includes(q)) {
+          const isEnrolled = enrolledCodes.has(s.subjectCode);
+          matches.push({
+            title: `${s.subjectCode} (${s.courseCode || s.subjectCode}) – ${s.subjectName || s.fullSubjectName}`,
+            sub: `Instructor: ${s.instructor || "Not specified"}${s.section ? ` • Section: ${s.section}` : ""}${isEnrolled ? " • Enrolled" : " • Catalog"}`,
+            type: isEnrolled ? "Enrolled Subject" : "Course Catalog",
+            section: "subjects"
+          });
+        }
+      });
+
+      const publishedAnnouncements = (state.announcements || []).filter((a) => a.published !== false);
+      publishedAnnouncements.forEach((a) => {
+        const hay = `${a.title || ""} ${a.description || ""} ${a.category || ""}`.toLowerCase();
         if (hay.includes(q)) {
           matches.push({
-            title: `${s.subjectCode} (${s.courseCode || "BSIT 2-2"}) - ${s.subjectName}`,
-            sub: `Instructor: ${s.instructor} • Section: ${s.section || "BSIT 2-2"}`,
-            type: "Subject",
-            section: role === "faculty" ? "faculty-classes" : "subjects"
-          });
-        }
-      });
-
-      const searchableAnnouncements =
-        role === "faculty"
-          ? state.announcements || []
-          : (state.announcements || []).filter((a) => a.published !== false);
-
-      searchableAnnouncements.forEach((a) => {
-        if (a.title.toLowerCase().includes(q) || a.description.toLowerCase().includes(q)) {
-          matches.push({
             title: a.title,
-            sub: `${a.category} • ${formatReadableDate(a.date)}`,
-            type: "Announcement",
-            section: role === "faculty" ? "faculty-announcements" : "announcements"
+            sub: `${a.category || "Announcement"} • ${typeof formatReadableDate === "function" ? formatReadableDate(a.date) : a.date || ""}`,
+            type: "Notice",
+            section: "announcements"
           });
         }
       });
 
-      state.tasks.forEach((t) => {
-        if (t.title.toLowerCase().includes(q) || t.subject.toLowerCase().includes(q)) {
+      (state.tasks || []).forEach((t) => {
+        const hay = `${t.title || ""} ${t.subject || ""} ${t.description || ""}`.toLowerCase();
+        if (hay.includes(q)) {
           matches.push({
             title: t.title,
-            sub: `${t.subject} • ${t.status}`,
+            sub: `${t.subject || "Academic"} • ${t.status || "Pending"}`,
             type: "Task",
-            section: role === "faculty" ? "faculty-tasks" : "tasks"
+            section: "tasks"
           });
         }
       });
 
-      state.resources.forEach((r) => {
-        if (r.title.toLowerCase().includes(q) || r.subject.toLowerCase().includes(q)) {
+      (state.resources || []).forEach((r) => {
+        const hay = `${r.title || ""} ${r.subject || ""} ${r.description || ""}`.toLowerCase();
+        if (hay.includes(q)) {
           matches.push({
             title: r.title,
-            sub: `${r.category} • ${r.subject}`,
+            sub: `${r.category || "Resource"} • ${r.subject || ""}`,
+            type: "Resource",
+            section: "resources"
+          });
+        }
+      });
+    }
+
+    if (role === "faculty") {
+      state.schedules.forEach((s) => {
+        const hay = `${s.subjectCode || ""} ${s.courseCode || ""} ${s.subjectName || ""} ${s.instructor || ""}`.toLowerCase();
+        if (hay.includes(q)) {
+          matches.push({
+            title: `${s.subjectCode} (${s.courseCode || s.subjectCode}) – ${s.subjectName}`,
+            sub: `Instructor: ${s.instructor || "Not specified"}${s.section ? ` • Section: ${s.section}` : ""}`,
+            type: "Subject",
+            section: "faculty-classes"
+          });
+        }
+      });
+
+      (state.announcements || []).forEach((a) => {
+        if ((a.title && a.title.toLowerCase().includes(q)) || (a.description && a.description.toLowerCase().includes(q))) {
+          matches.push({
+            title: a.title,
+            sub: `${a.category || "Faculty Notice"} • ${typeof formatReadableDate === "function" ? formatReadableDate(a.date) : a.date || ""}`,
+            type: "Announcement",
+            section: "faculty-announcements"
+          });
+        }
+      });
+
+      (state.tasks || []).forEach((t) => {
+        if ((t.title && t.title.toLowerCase().includes(q)) || (t.subject && t.subject.toLowerCase().includes(q))) {
+          matches.push({
+            title: t.title,
+            sub: `${t.subject} • ${t.status || "Pending"}`,
+            type: "Task",
+            section: "faculty-tasks"
+          });
+        }
+      });
+
+      (state.resources || []).forEach((r) => {
+        if ((r.title && r.title.toLowerCase().includes(q)) || (r.subject && r.subject.toLowerCase().includes(q))) {
+          matches.push({
+            title: r.title,
+            sub: `${r.category || "Resource"} • ${r.subject || ""}`,
             type: "Resource",
             section: "resources"
           });
@@ -831,20 +1012,6 @@ const StudentHubApp = (function () {
     });
   }
 
-  function openMobileSidebar() {
-    const sidebar = document.getElementById("sidebar");
-    const overlay = document.getElementById("sidebarOverlay");
-    if (sidebar) sidebar.classList.add("mobile-open");
-    if (overlay) overlay.classList.add("active");
-  }
-
-  function closeMobileSidebar() {
-    const sidebar = document.getElementById("sidebar");
-    const overlay = document.getElementById("sidebarOverlay");
-    if (sidebar) sidebar.classList.remove("mobile-open");
-    if (overlay) overlay.classList.remove("active");
-  }
-
   function init() {
     const dateEl = document.getElementById("topbarDateDisplay");
     if (dateEl) {
@@ -897,9 +1064,17 @@ const StudentHubApp = (function () {
     if (profileBtn) {
       profileBtn.addEventListener("click", () => {
         const role = getActiveRole();
-        if (role === "faculty") navigateTo("faculty-profile");
-        else if (role === "applicant") navigateTo("applicant-status");
-        else navigateTo("profile");
+        if (role === "faculty") {
+          navigateTo("faculty-profile");
+        } else if (role === "applicant") {
+          if (window.StudentHubApplicant && window.StudentHubApplicant.openApplicantAccountModal) {
+            window.StudentHubApplicant.openApplicantAccountModal();
+          } else {
+            navigateTo("applicant-landing");
+          }
+        } else {
+          navigateTo("profile");
+        }
       });
     }
 
@@ -913,12 +1088,6 @@ const StudentHubApp = (function () {
         refreshAll();
       });
     }
-
-    // Mobile Menu Drawer
-    const mobileMenuBtn = document.getElementById("mobileMenuBtn");
-    const sidebarOverlay = document.getElementById("sidebarOverlay");
-    if (mobileMenuBtn) mobileMenuBtn.addEventListener("click", openMobileSidebar);
-    if (sidebarOverlay) sidebarOverlay.addEventListener("click", closeMobileSidebar);
 
     // Theme Toggle
     const themeToggleBtn = document.getElementById("themeToggleBtn");
@@ -1008,34 +1177,58 @@ const StudentHubApp = (function () {
       }
     });
 
-    // Logout & Role Switcher Buttons
+    // Logout Buttons (Sidebar and Topbar)
     const sidebarLogoutBtn = document.getElementById("sidebarLogoutBtn");
     const topbarLogoutBtn = document.getElementById("topbarLogoutBtn");
-    const quickSwitchRoleBtn = document.getElementById("quickSwitchRoleBtn");
 
     if (sidebarLogoutBtn) sidebarLogoutBtn.addEventListener("click", logoutToLogin);
     if (topbarLogoutBtn) topbarLogoutBtn.addEventListener("click", logoutToLogin);
-    if (quickSwitchRoleBtn) {
-      quickSwitchRoleBtn.addEventListener("click", () => {
-        if (window.StudentHubAuth) {
-          window.StudentHubAuth.openDemoRoleLauncher();
-        }
-      });
-    }
 
     // Apply initial theme and check session
     const state = StudentHubStorage.getState();
     applyTheme(state.settings.theme || "light");
     syncUniversityLogo();
 
+    const path = window.location.pathname.toLowerCase();
+    const initialHash = window.location.hash.replace("#", "").toLowerCase();
+    const isPublicAdmission =
+      path.endsWith("/admission.html") ||
+      path.endsWith("/applicant.html") ||
+      initialHash === "admission" ||
+      initialHash === "apply" ||
+      initialHash === "application";
+
+    if (isPublicAdmission) {
+      applyTheme("light");
+      showAdmissionPage();
+      return;
+    }
+
     const activeSession = StudentHubStorage.getSession();
     if (activeSession) {
-      const initialHash = window.location.hash.replace("#", "");
       enterPortal(initialHash || null);
     } else {
       showLoginScreen();
     }
   }
+
+  window.addEventListener("hashchange", () => {
+    const hash = window.location.hash.replace("#", "").toLowerCase();
+    if (hash === "admission" || hash === "apply" || hash === "application") {
+      showAdmissionPage();
+      return;
+    }
+    if (hash === "login") {
+      showLoginScreen();
+      return;
+    }
+    const session = StudentHubStorage.getSession();
+    if (session) {
+      navigateTo(hash, false);
+    } else {
+      showLoginScreen();
+    }
+  });
 
   document.addEventListener("DOMContentLoaded", init);
 
@@ -1055,10 +1248,16 @@ const StudentHubApp = (function () {
     getActiveRole,
     requireRole,
     syncUniversityLogo,
+    showAdmissionPage,
     showLoginScreen,
     enterPortal,
     logoutToLogin,
     navigateTo,
+    openChangePasswordModal: () => {
+      if (window.StudentHubSettings && window.StudentHubSettings.openChangePasswordModal) {
+        window.StudentHubSettings.openChangePasswordModal();
+      }
+    },
     refreshAll
   };
 })();
