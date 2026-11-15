@@ -1,0 +1,67 @@
+# ============================================================================
+# BANTUG UNIVERSITY - Student Portal System (.gitignore)
+# ============================================================================
+
+# Dependencies
+node_modules/
+jspm_packages/
+web_modules/
+
+# Environment Variables & Secrets
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+*.env
+!.env.example
+
+# Database Backups, Dumps & Snapshots
+database/backups/*.json
+database/backups/*.sql
+*.dump
+*.sql.gz
+*.sqlite
+
+# Logs & Debug Output
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Runtime, Temporary & Cache Files
+.cache/
+.temp/
+temp/
+tmp/
+pids/
+*.pid
+*.seed
+*.pid.lock
+
+# User Uploads & Media Storage
+uploads/
+storage/uploads/
+
+# IDE & Editor Configurations
+.vscode/*
+!.vscode/launch.json
+!.vscode/extensions.json
+.idea/
+*.sublime-project
+*.sublime-workspace
+*.swp
+*.swo
+
+# Operating System Files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+[Dd]esktop.ini
